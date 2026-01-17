@@ -1,0 +1,7 @@
+requests        # Para comunicarte con APIs externas (ej. LLM)
+pydantic        # Para validar la estructura de salida del agente
+python-dotenv   # Para manejar variables de entorno (ej. API keys)
+loguru          # Para logging claro y estructurado
+pytest          # Para pruebas unitarias
+beautifulsoup4  # Para parsear HTML en jurisprudencia.py
+typing-extensions  # Opcional, para anotaciones de tipos más avanzadas
