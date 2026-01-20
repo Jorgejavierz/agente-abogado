@@ -1,30 +1,58 @@
-# main.py
+from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
+from pydantic import BaseModel
 from agent import LaborLawyerAgent
 from jurisprudencia import Jurisprudencia
 
-def main():
-    print("Agente Abogado Laboral inicializado correctamente ✅")
+# Inicializar FastAPI
+app = FastAPI(title="Agente Abogado Laboral")
 
-    # Inicializar agente
-    agent = LaborLawyerAgent()
+# Configurar CORS (para permitir llamadas desde tu frontend en Vercel)
+origins = [
+    "https://agente-laboral-frontend.vercel.app",  # dominio de tu frontend en producción
+    "http://localhost:5173",                       # para pruebas locales
+]
 
-    # Ejemplo: analizar un conflicto laboral
-    caso = "Despido sin causa con reclamo de horas extras"
-    informe = agent.analizar_conflicto(caso)
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
-    # Buscar jurisprudencia relacionada
-    buscador = Jurisprudencia()
-    fallos = buscador.buscar_fallos("despido")
+# Inicializar agente y buscador
+agent = LaborLawyerAgent()
+buscador = Jurisprudencia()
 
-    print("\n--- Informe del agente ---\n")
-    print(informe)
+# Modelos de entrada
+class ContratoInput(BaseModel):
+    texto: str
 
-    print("\n--- Jurisprudencia relacionada ---\n")
-    if not fallos:
-        print("No se encontraron fallos relacionados.")
-    else:
-        for fallo in fallos:
-            print(f"- {fallo['titulo']} → {fallo['link']}")
+class ConflictoInput(BaseModel):
+    descripcion: str
 
-if __name__ == "__main__":
-    main()
+# Endpoint para analizar contrato
+@app.post("/analizar-contrato")
+def analizar_contrato(data: ContratoInput):
+    informe = agent.analizar_contrato(data.texto)
+    fallos = buscador.buscar_fallos("contrato")
+    return {
+        "resultado": informe,
+        "fallos_relacionados": fallos
+    }
+
+# Endpoint para analizar conflicto
+@app.post("/analizar-conflicto")
+def analizar_conflicto(data: ConflictoInput):
+    informe = agent.analizar_conflicto(data.descripcion)
+    fallos = buscador.buscar_fallos("conflicto")
+    return {
+        "resultado": informe,
+        "fallos_relacionados": fallos
+    }
+
+# Endpoint raíz para verificar que el backend está vivo
+@app.get("/")
+def root():
+    return {"mensaje": "Agente Abogado Laboral inicializado correctamente ✅"}
