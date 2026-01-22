@@ -11,12 +11,12 @@ app = FastAPI(
     description="API para análisis de contratos y conflictos laborales en Argentina"
 )
 
-# Configurar CORS (para permitir llamadas desde tu frontend en Vercel y pruebas locales)
+# Configurar CORS
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
         "https://agente-laboral-frontend.vercel.app",  # dominio de tu frontend en producción
-        "http://localhost:5173",                       # para pruebas locales
+        "http://localhost:5173",                       # pruebas locales
         "*"                                            # abierto para pruebas generales
     ],
     allow_credentials=True,
@@ -35,14 +35,20 @@ class ContratoInput(BaseModel):
 class ConflictoInput(BaseModel):
     descripcion: str
 
-# Endpoint raíz para verificar que el backend está vivo
+# Endpoint raíz
 @app.get("/", tags=["Health"])
-def root():
+async def root():
+    """
+    Endpoint de salud para verificar que el backend está vivo.
+    """
     return {"mensaje": "Agente Abogado Laboral inicializado correctamente ✅"}
 
 # Endpoint para analizar contrato
 @app.post("/analizar-contrato", tags=["Contratos"])
-def analizar_contrato(data: ContratoInput):
+async def analizar_contrato(data: ContratoInput):
+    """
+    Analiza un contrato laboral y devuelve un informe junto con fallos relacionados.
+    """
     informe = agent.analizar_contrato(data.texto)
     fallos = buscador.buscar_fallos("contrato")
     return {
@@ -52,7 +58,10 @@ def analizar_contrato(data: ContratoInput):
 
 # Endpoint para analizar conflicto
 @app.post("/analizar-conflicto", tags=["Conflictos"])
-def analizar_conflicto(data: ConflictoInput):
+async def analizar_conflicto(data: ConflictoInput):
+    """
+    Analiza un conflicto laboral y devuelve un informe junto con fallos relacionados.
+    """
     informe = agent.analizar_conflicto(data.descripcion)
     fallos = buscador.buscar_fallos("conflicto")
     return {
