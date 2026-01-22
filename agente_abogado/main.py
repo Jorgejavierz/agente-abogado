@@ -36,12 +36,12 @@ class ConflictoInput(BaseModel):
     descripcion: str
 
 # Endpoint raíz para verificar que el backend está vivo
-@app.get("/")
+@app.get("/", tags=["Health"])
 def root():
     return {"mensaje": "Agente Abogado Laboral inicializado correctamente ✅"}
 
 # Endpoint para analizar contrato
-@app.post("/analizar-contrato")
+@app.post("/analizar-contrato", tags=["Contratos"])
 def analizar_contrato(data: ContratoInput):
     informe = agent.analizar_contrato(data.texto)
     fallos = buscador.buscar_fallos("contrato")
@@ -51,7 +51,7 @@ def analizar_contrato(data: ContratoInput):
     }
 
 # Endpoint para analizar conflicto
-@app.post("/analizar-conflicto")
+@app.post("/analizar-conflicto", tags=["Conflictos"])
 def analizar_conflicto(data: ConflictoInput):
     informe = agent.analizar_conflicto(data.descripcion)
     fallos = buscador.buscar_fallos("conflicto")
