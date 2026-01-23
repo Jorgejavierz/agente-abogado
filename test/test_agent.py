@@ -1,5 +1,4 @@
 # test/test_agent.py
-import os
 import pytest
 from agent import LaborLawyerAgent
 from memoria import MemoriaAgente
@@ -16,10 +15,10 @@ def test_review_contract(agente):
     contrato = "El trabajador prestará servicios de lunes a viernes, jornada de 8 horas."
     resultado = agente.review_contract(contrato)
 
-    assert "Contrato recibido" in resultado
+    assert "Contrato recibido" in resultado, "El contrato no fue procesado correctamente"
     # Verificamos que se guardó en memoria
     casos = agente.memoria.buscar_similares("lunes a viernes")
-    assert len(casos) > 0
+    assert len(casos) > 0, "El contrato no se guardó en memoria"
 
 def test_analizar_conflicto(agente):
     conflicto = "Despido sin causa con reclamo de horas extras"
@@ -52,5 +51,4 @@ def test_jurisprudencia_integration(agente):
     # Probamos que la clase Jurisprudencia esté integrada
     resultado = agente.analizar_conflicto("despido")
     assert "fallos_relacionados" in resultado
-    # No garantizamos resultados reales, pero debe devolver una lista
     assert isinstance(resultado["fallos_relacionados"], list)

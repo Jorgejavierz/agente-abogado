@@ -16,7 +16,7 @@ class Jurisprudencia:
         self.base_url = base_url or self.BASE_URL
         self.headers = {"User-Agent": "Mozilla/5.0"}
 
-    def buscar_fallos(self, query: str) -> list:
+    def buscar_fallos(self, query: str) -> list[dict]:
         """
         Busca fallos judiciales relacionados con la query.
         Retorna una lista de diccionarios con 'titulo' y 'link'.
@@ -26,7 +26,7 @@ class Jurisprudencia:
             response.raise_for_status()
         except requests.RequestException as e:
             logger.error(f"No se pudo conectar con la página {self.base_url}: {e}")
-            return []
+            return [{"titulo": "Error de conexión", "link": None}]
 
         soup = BeautifulSoup(response.text, "html.parser")
 

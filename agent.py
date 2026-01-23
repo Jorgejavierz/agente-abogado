@@ -2,6 +2,7 @@
 from prompt import LABOR_LAWYER_PROMPT
 from jurisprudencia import Jurisprudencia
 from memoria import MemoriaAgente
+from config import NORMATIVA_BASE  # importamos normativa desde config.py
 
 class LaborLawyerAgent:
     def __init__(self):
@@ -9,35 +10,55 @@ class LaborLawyerAgent:
         self.jurisprudencia = Jurisprudencia()
         self.memoria = MemoriaAgente()
 
-    def review_contract(self, contract_text: str) -> str:
+    def review_contract(self, contract_text: str) -> dict:
         informe = f"{self.prompt}\n\n---\nContrato recibido:\n{contract_text}"
 
         # Guardar en memoria
-        self.memoria.guardar_caso(
-            tipo="contrato",
-            texto=contract_text,
-            normativa="Ley 20.744, DNU 70/2023, Ley 24.901",
-            jurisprudencia="N/A",
-            resultado="Pendiente"
-        )
-        return informe
+        try:
+            self.memoria.guardar_caso(
+                tipo="contrato",
+                texto=contract_text,
+                normativa=", ".join(NORMATIVA_BASE),
+                jurisprudencia="N/A",
+                resultado="Pendiente"
+            )
+        except Exception as e:
+            print(f"Error guardando contrato en memoria: {e}")
+
+        return {
+            "informe": informe,
+            "normativa": NORMATIVA_BASE
+        }
 
     def analizar_conflicto(self, caso: str) -> dict:
-        fallos = self.jurisprudencia.buscar_fallos(caso)
-        similares = self.memoria.buscar_similares(caso)
+        try:
+            fallos = self.jurisprudencia.buscar_fallos(caso)
+        except Exception as e:
+            print(f"Error buscando fallos: {e}")
+            fallos = []
+
+        try:
+            similares = self.memoria.buscar_similares(caso)
+        except Exception as e:
+            print(f"Error buscando casos similares: {e}")
+            similares = []
 
         resultado = {
             "caso": caso,
             "fallos_relacionados": fallos[:5],
             "casos_previos": similares,
-            "normativa": ["Ley 20.744", "DNU 70/2023", "Ley 24.901"]
+            "normativa": NORMATIVA_BASE
         }
 
-        self.memoria.guardar_caso(
-            tipo="conflicto",
-            texto=caso,
-            normativa="Ley 20.744, DNU 70/2023, Ley 24.901",
-            jurisprudencia=str(fallos[:5]),
-            resultado="Pendiente"
-        )
+        try:
+            self.memoria.guardar_caso(
+                tipo="conflicto",
+                texto=caso,
+                normativa=", ".join(NORMATIVA_BASE),
+                jurisprudencia=str(fallos[:5]),
+                resultado="Pendiente"
+            )
+        except Exception as e:
+            print(f"Error guardando conflicto en memoria: {e}")
+
         return resultado

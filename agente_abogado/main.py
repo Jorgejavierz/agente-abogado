@@ -1,8 +1,12 @@
+# agente_abogado/main.py
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel
+
 from agent import LaborLawyerAgent
 from jurisprudencia import Jurisprudencia
+from config import ALLOWED_ORIGINS
+from validator import validar_contrato, validar_conflicto
 
 # Inicializar FastAPI
 app = FastAPI(
@@ -11,62 +15,50 @@ app = FastAPI(
     description="API para análisis de contratos y conflictos laborales en Argentina"
 )
 
-# Configurar CORS
+# Configurar CORS usando ALLOWED_ORIGINS desde config.py
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "https://agente-laboral-frontend.vercel.app",  # dominio de tu frontend en producción
-        "http://localhost:5173",                       # pruebas locales
-        "*"                                            # abierto para pruebas generales
-    ],
+    allow_origins=ALLOWED_ORIGINS,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-# Inicializar variables (se cargan en startup)
-agent = None
-buscador = None
-
+# Inicializar dependencias en startup
 @app.on_event("startup")
 async def startup_event():
-    global agent, buscador
-    agent = LaborLawyerAgent()
-    buscador = Jurisprudencia()
-
-# Modelos de entrada
-class ContratoInput(BaseModel):
-    texto: str
-
-class ConflictoInput(BaseModel):
-    descripcion: str
+    try:
+        app.state.agent = LaborLawyerAgent()
+        app.state.buscador = Jurisprudencia()
+    except Exception as e:
+        print(f"Error inicializando dependencias: {e}")
 
 # Endpoint raíz
 @app.get("/", tags=["Health"])
 async def root():
     return {"mensaje": "Agente Abogado Laboral inicializado correctamente ✅"}
 
-# Endpoint health check (para Render)
+# Endpoint health check
 @app.get("/health", tags=["Health"])
 async def health():
     return {"status": "ok"}
 
 # Endpoint para analizar contrato
 @app.post("/analizar-contrato", tags=["Contratos"])
-async def analizar_contrato(data: ContratoInput):
-    informe = agent.review_contract(data.texto)
-    fallos = buscador.buscar_fallos("contrato")
-    return {
-        "resultado": informe,
-        "fallos_relacionados": fallos
-    }
+async def analizar_contrato(data: dict):
+    contrato = validar_contrato(data)
+    if not contrato:
+        return {"error": "Contrato inválido"}
+    informe = app.state.agent.review_contract(contrato.texto)
+    fallos = app.state.buscador.buscar_fallos("contrato")
+    return {"resultado": informe, "fallos_relacionados": fallos}
 
 # Endpoint para analizar conflicto
 @app.post("/analizar-conflicto", tags=["Conflictos"])
-async def analizar_conflicto(data: ConflictoInput):
-    informe = agent.analizar_conflicto(data.descripcion)
-    fallos = buscador.buscar_fallos("conflicto")
-    return {
-        "resultado": informe,
-        "fallos_relacionados": fallos
-    }
+async def analizar_conflicto(data: dict):
+    conflicto = validar_conflicto(data)
+    if not conflicto:
+        return {"error": "Conflicto inválido"}
+    informe = app.state.agent.analizar_conflicto(conflicto.descripcion)
+    fallos = app.state.buscador.buscar_fallos("conflicto")
+    return {"resultado": informe, "fallos_relacionados": fallos}
