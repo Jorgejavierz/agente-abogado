@@ -24,9 +24,15 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Inicializar agente y buscador
-agent = LaborLawyerAgent()
-buscador = Jurisprudencia()
+# Inicializar variables (se cargan en startup)
+agent = None
+buscador = None
+
+@app.on_event("startup")
+async def startup_event():
+    global agent, buscador
+    agent = LaborLawyerAgent()
+    buscador = Jurisprudencia()
 
 # Modelos de entrada
 class ContratoInput(BaseModel):
@@ -38,18 +44,17 @@ class ConflictoInput(BaseModel):
 # Endpoint raíz
 @app.get("/", tags=["Health"])
 async def root():
-    """
-    Endpoint de salud para verificar que el backend está vivo.
-    """
     return {"mensaje": "Agente Abogado Laboral inicializado correctamente ✅"}
+
+# Endpoint health check (para Render)
+@app.get("/health", tags=["Health"])
+async def health():
+    return {"status": "ok"}
 
 # Endpoint para analizar contrato
 @app.post("/analizar-contrato", tags=["Contratos"])
 async def analizar_contrato(data: ContratoInput):
-    """
-    Analiza un contrato laboral y devuelve un informe junto con fallos relacionados.
-    """
-    informe = agent.analizar_contrato(data.texto)
+    informe = agent.review_contract(data.texto)
     fallos = buscador.buscar_fallos("contrato")
     return {
         "resultado": informe,
@@ -59,9 +64,6 @@ async def analizar_contrato(data: ContratoInput):
 # Endpoint para analizar conflicto
 @app.post("/analizar-conflicto", tags=["Conflictos"])
 async def analizar_conflicto(data: ConflictoInput):
-    """
-    Analiza un conflicto laboral y devuelve un informe junto con fallos relacionados.
-    """
     informe = agent.analizar_conflicto(data.descripcion)
     fallos = buscador.buscar_fallos("conflicto")
     return {
