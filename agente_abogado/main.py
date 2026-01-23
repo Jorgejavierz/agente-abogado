@@ -20,7 +20,7 @@ app = FastAPI(
 # Configurar CORS usando ALLOWED_ORIGINS desde config.py
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=ALLOWED_ORIGINS,
+    allow_origins=ALLOWED_ORIGINS,  # Ej: ["http://localhost:5173", "https://tu-dominio.com"]
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
