@@ -2,6 +2,8 @@
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from pydantic import BaseModel
+import sqlite3
 
 from agent import LaborLawyerAgent
 from jurisprudencia import Jurisprudencia
@@ -30,6 +32,28 @@ async def startup_event():
     try:
         app.state.agent = LaborLawyerAgent()
         app.state.buscador = Jurisprudencia()
+        # Inicializar base de datos
+        conn = sqlite3.connect("memoria_agente.db")
+        cursor = conn.cursor()
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS feedback (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                texto TEXT,
+                util BOOLEAN,
+                timestamp TEXT
+            )
+        """)
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS memoria (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                tipo TEXT,
+                texto TEXT,
+                resultado TEXT,
+                timestamp TEXT
+            )
+        """)
+        conn.commit()
+        conn.close()
     except Exception as e:
         print(f"Error inicializando dependencias: {e}")
 
@@ -51,6 +75,17 @@ async def analizar_contrato(data: dict):
         return {"error": "Contrato inválido"}
     informe = app.state.agent.review_contract(contrato.texto)
     fallos = app.state.buscador.buscar_fallos("contrato")
+
+    # Guardar en memoria
+    conn = sqlite3.connect("memoria_agente.db")
+    cursor = conn.cursor()
+    cursor.execute("""
+        INSERT INTO memoria (tipo, texto, resultado, timestamp)
+        VALUES (?, ?, ?, datetime('now'))
+    """, ("contrato", contrato.texto, informe))
+    conn.commit()
+    conn.close()
+
     return {"resultado": informe, "fallos_relacionados": fallos}
 
 # Endpoint para analizar conflicto
@@ -61,4 +96,66 @@ async def analizar_conflicto(data: dict):
         return {"error": "Conflicto inválido"}
     informe = app.state.agent.analizar_conflicto(conflicto.descripcion)
     fallos = app.state.buscador.buscar_fallos("conflicto")
+
+    # Guardar en memoria
+    conn = sqlite3.connect("memoria_agente.db")
+    cursor = conn.cursor()
+    cursor.execute("""
+        INSERT INTO memoria (tipo, texto, resultado, timestamp)
+        VALUES (?, ?, ?, datetime('now'))
+    """, ("conflicto", conflicto.descripcion, informe))
+    conn.commit()
+    conn.close()
+
     return {"resultado": informe, "fallos_relacionados": fallos}
+
+# -------------------------------
+# NUEVO: Endpoint de Feedback
+# -------------------------------
+
+class Feedback(BaseModel):
+    texto: str
+    util: bool
+    timestamp: str
+
+@app.post("/feedback", tags=["Feedback"])
+async def guardar_feedback(feedback: Feedback):
+    try:
+        conn = sqlite3.connect("memoria_agente.db")
+        cursor = conn.cursor()
+        cursor.execute("""
+            INSERT INTO feedback (texto, util, timestamp)
+            VALUES (?, ?, ?)
+        """, (feedback.texto, feedback.util, feedback.timestamp))
+        conn.commit()
+        conn.close()
+        return {"mensaje": "Feedback guardado correctamente ✅"}
+    except Exception as e:
+        return {"error": str(e)}
+
+@app.get("/feedback", tags=["Feedback"])
+async def listar_feedback():
+    conn = sqlite3.connect("memoria_agente.db")
+    cursor = conn.cursor()
+    cursor.execute("SELECT id, texto, util, timestamp FROM feedback ORDER BY id DESC")
+    rows = cursor.fetchall()
+    conn.close()
+    return {"feedback": rows}
+
+# -------------------------------
+# NUEVO: Endpoint de Memoria
+# -------------------------------
+
+@app.get("/memoria", tags=["Memoria"])
+async def listar_memoria(limit: int = 10):
+    conn = sqlite3.connect("memoria_agente.db")
+    cursor = conn.cursor()
+    cursor.execute("""
+        SELECT id, tipo, texto, resultado, timestamp
+        FROM memoria
+        ORDER BY id DESC
+        LIMIT ?
+    """, (limit,))
+    rows = cursor.fetchall()
+    conn.close()
+    return {"memoria": rows}
