@@ -4,6 +4,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 import sqlite3
+import json
 
 from agent import LaborLawyerAgent
 from jurisprudencia import Jurisprudencia
@@ -17,10 +18,10 @@ app = FastAPI(
     description="API para análisis de contratos y conflictos laborales en Argentina"
 )
 
-# Configurar CORS usando ALLOWED_ORIGINS desde config.py
+# Configurar CORS
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=ALLOWED_ORIGINS,  # Ej: ["http://localhost:5173", "https://tu-dominio.com"]
+    allow_origins=ALLOWED_ORIGINS,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -49,6 +50,7 @@ async def startup_event():
                 tipo TEXT,
                 texto TEXT,
                 resultado TEXT,
+                fallos_relacionados TEXT,
                 timestamp TEXT
             )
         """)
@@ -73,20 +75,30 @@ async def analizar_contrato(data: dict):
     contrato = validar_contrato(data)
     if not contrato:
         return {"error": "Contrato inválido"}
+
     informe = app.state.agent.review_contract(contrato.texto)
     fallos = app.state.buscador.buscar_fallos("contrato")
 
-    # Guardar en memoria
+    # Guardar en memoria (solo strings y listas serializadas)
     conn = sqlite3.connect("memoria_agente.db")
     cursor = conn.cursor()
     cursor.execute("""
-        INSERT INTO memoria (tipo, texto, resultado, timestamp)
-        VALUES (?, ?, ?, datetime('now'))
-    """, ("contrato", contrato.texto, informe))
+        INSERT INTO memoria (tipo, texto, resultado, fallos_relacionados, timestamp)
+        VALUES (?, ?, ?, ?, datetime('now'))
+    """, (
+        "contrato",
+        contrato.texto,
+        informe["resultado"],          # string
+        json.dumps(fallos)             # lista serializada
+    ))
     conn.commit()
     conn.close()
 
-    return {"resultado": informe, "fallos_relacionados": fallos}
+    return {
+        "resultado": informe["resultado"],
+        "fallos_relacionados": fallos,
+        "normativa": informe["normativa"]
+    }
 
 # Endpoint para analizar conflicto
 @app.post("/analizar-conflicto", tags=["Conflictos"])
@@ -94,23 +106,33 @@ async def analizar_conflicto(data: dict):
     conflicto = validar_conflicto(data)
     if not conflicto:
         return {"error": "Conflicto inválido"}
+
     informe = app.state.agent.analizar_conflicto(conflicto.descripcion)
     fallos = app.state.buscador.buscar_fallos("conflicto")
 
-    # Guardar en memoria
+    # Guardar en memoria (solo strings y listas serializadas)
     conn = sqlite3.connect("memoria_agente.db")
     cursor = conn.cursor()
     cursor.execute("""
-        INSERT INTO memoria (tipo, texto, resultado, timestamp)
-        VALUES (?, ?, ?, datetime('now'))
-    """, ("conflicto", conflicto.descripcion, informe))
+        INSERT INTO memoria (tipo, texto, resultado, fallos_relacionados, timestamp)
+        VALUES (?, ?, ?, ?, datetime('now'))
+    """, (
+        "conflicto",
+        conflicto.descripcion,
+        informe["resultado"],          # string
+        json.dumps(fallos)             # lista serializada
+    ))
     conn.commit()
     conn.close()
 
-    return {"resultado": informe, "fallos_relacionados": fallos}
+    return {
+        "resultado": informe["resultado"],
+        "fallos_relacionados": fallos,
+        "normativa": informe["normativa"]
+    }
 
 # -------------------------------
-# NUEVO: Endpoint de Feedback
+# Endpoint de Feedback
 # -------------------------------
 
 class Feedback(BaseModel):
@@ -143,7 +165,7 @@ async def listar_feedback():
     return {"feedback": rows}
 
 # -------------------------------
-# NUEVO: Endpoint de Memoria
+# Endpoint de Memoria
 # -------------------------------
 
 @app.get("/memoria", tags=["Memoria"])
@@ -151,7 +173,7 @@ async def listar_memoria(limit: int = 10):
     conn = sqlite3.connect("memoria_agente.db")
     cursor = conn.cursor()
     cursor.execute("""
-        SELECT id, tipo, texto, resultado, timestamp
+        SELECT id, tipo, texto, resultado, fallos_relacionados, timestamp
         FROM memoria
         ORDER BY id DESC
         LIMIT ?

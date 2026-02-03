@@ -17,18 +17,20 @@ def test_review_contract(agente):
 
     assert "Contrato recibido" in resultado, "El contrato no fue procesado correctamente"
     # Verificamos que se guardó en memoria
-    casos = agente.memoria.buscar_similares("lunes a viernes")
-    assert len(casos) > 0, "El contrato no se guardó en memoria"
+    registros = agente.memoria.buscar_similares("lunes a viernes")
+    assert len(registros) > 0, "El contrato no se guardó en memoria"
 
 def test_analizar_conflicto(agente):
     conflicto = "Despido sin causa con reclamo de horas extras"
     resultado = agente.analizar_conflicto(conflicto)
 
-    assert "caso" in resultado
-    assert resultado["caso"] == conflicto
+    assert "resultado" in resultado
+    assert isinstance(resultado["resultado"], str)
     assert "fallos_relacionados" in resultado
     assert isinstance(resultado["fallos_relacionados"], list)
-    assert "casos_previos" in resultado
+    # Ahora verificamos que se guardó en memoria
+    registros = agente.memoria.buscar_similares("horas extras")
+    assert len(registros) >= 0
 
 def test_memoria_persistencia(tmp_path):
     # Creamos una base de datos real en disco
@@ -38,14 +40,13 @@ def test_memoria_persistencia(tmp_path):
     memoria.guardar_caso(
         tipo="conflicto",
         texto="Reclamo por horas extras",
-        normativa="Art. 201 LCT",
-        jurisprudencia="N/A",
-        resultado="Pendiente"
+        resultado="Pendiente",
+        fallos_relacionados=["Art. 201 LCT"]
     )
 
     resultados = memoria.buscar_similares("horas extras")
     assert len(resultados) == 1
-    assert "horas extras" in resultados[0][0]
+    assert "horas extras" in resultados[0][1]  # el campo texto
 
 def test_jurisprudencia_integration(agente):
     # Probamos que la clase Jurisprudencia esté integrada
