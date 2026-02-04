@@ -9,7 +9,36 @@ import json
 from agent import LaborLawyerAgent
 from jurisprudencia import Jurisprudencia
 from config import ALLOWED_ORIGINS
-from validator import validar_contrato, validar_conflicto
+
+# -------------------------------
+# Función para formatear respuestas narrativas
+# -------------------------------
+def formatear_respuesta(data: dict) -> str:
+    normativa = "\n".join([f"- {n}" for n in data.get("normativa", [])]) or "No se encontró normativa aplicable."
+    fallos = "\n".join([f"- {f['titulo']}" for f in data.get("fallos_relacionados", [])]) or "Sin resultados"
+
+    return f"""
+1. Resumen ejecutivo:
+{data.get("resultado", "Sin conclusión")}
+
+2. Normativa aplicable:
+{normativa}
+
+3. Jurisprudencia relevante:
+{data.get("jurisprudencia", "No se encontraron fallos relevantes.")}
+
+4. Clasificación del caso:
+{data.get("clasificacion", "No se especificó clasificación.")}
+
+5. Riesgos legales:
+{data.get("riesgos", "No se detectaron riesgos específicos.")}
+
+6. Recomendaciones:
+{data.get("recomendaciones", "Se recomienda revisión por abogado humano.")}
+
+7. Conclusión:
+Este análisis debe ser revisado por un abogado humano antes de tomar decisiones.
+"""
 
 # Inicializar FastAPI
 app = FastAPI(
@@ -69,72 +98,61 @@ async def root():
 async def health():
     return {"status": "ok"}
 
-# Endpoint para analizar contrato
-@app.post("/analizar-contrato", tags=["Contratos"])
-async def analizar_contrato(data: dict):
-    contrato = validar_contrato(data)
-    if not contrato:
-        return {"error": "Contrato inválido"}
+# -------------------------------
+# Endpoint único de análisis
+# -------------------------------
+class TextoEntrada(BaseModel):
+    texto: str
 
-    informe = app.state.agent.review_contract(contrato.texto)
-    fallos = app.state.buscador.buscar_fallos("contrato")
+@app.post("/analizar", tags=["Análisis"])
+async def analizar_texto(payload: TextoEntrada):
+    texto = payload.texto
+    agent = app.state.agent
 
-    # Guardar en memoria (solo strings y listas serializadas)
+    # Lógica simple de detección
+    palabras_conflicto = ["denuncia", "conflicto", "discriminación", "acoso", "reclamo"]
+    if any(palabra in texto.lower() for palabra in palabras_conflicto):
+        informe = agent.analizar_conflicto(texto)
+        tipo = "conflicto"
+    else:
+        informe = agent.review_contract(texto)
+        tipo = "contrato"
+
+    fallos = app.state.buscador.buscar_fallos(tipo)
+
+    # Guardar en memoria con hora local
     conn = sqlite3.connect("memoria_agente.db")
     cursor = conn.cursor()
     cursor.execute("""
         INSERT INTO memoria (tipo, texto, resultado, fallos_relacionados, timestamp)
-        VALUES (?, ?, ?, ?, datetime('now'))
+        VALUES (?, ?, ?, ?, datetime('now','localtime'))
     """, (
-        "contrato",
-        contrato.texto,
-        informe["resultado"],          # string
-        json.dumps(fallos)             # lista serializada
+        tipo,
+        texto,
+        informe["resultado"],
+        json.dumps(fallos)
     ))
     conn.commit()
     conn.close()
 
-    return {
+    resultado = {
         "resultado": informe["resultado"],
         "fallos_relacionados": fallos,
-        "normativa": informe["normativa"]
+        "normativa": informe.get("normativa", []),
+        "jurisprudencia": informe.get("jurisprudencia", ""),
+        "clasificacion": informe.get("clasificacion", ""),
+        "riesgos": informe.get("riesgos", ""),
+        "recomendaciones": informe.get("recomendaciones", "")
     }
 
-# Endpoint para analizar conflicto
-@app.post("/analizar-conflicto", tags=["Conflictos"])
-async def analizar_conflicto(data: dict):
-    conflicto = validar_conflicto(data)
-    if not conflicto:
-        return {"error": "Conflicto inválido"}
-
-    informe = app.state.agent.analizar_conflicto(conflicto.descripcion)
-    fallos = app.state.buscador.buscar_fallos("conflicto")
-
-    # Guardar en memoria (solo strings y listas serializadas)
-    conn = sqlite3.connect("memoria_agente.db")
-    cursor = conn.cursor()
-    cursor.execute("""
-        INSERT INTO memoria (tipo, texto, resultado, fallos_relacionados, timestamp)
-        VALUES (?, ?, ?, ?, datetime('now'))
-    """, (
-        "conflicto",
-        conflicto.descripcion,
-        informe["resultado"],          # string
-        json.dumps(fallos)             # lista serializada
-    ))
-    conn.commit()
-    conn.close()
-
     return {
-        "resultado": informe["resultado"],
-        "fallos_relacionados": fallos,
-        "normativa": informe["normativa"]
+        "json": resultado,
+        "texto_formateado": formatear_respuesta(resultado)
     }
 
 # -------------------------------
 # Endpoint de Feedback
 # -------------------------------
-
 class Feedback(BaseModel):
     texto: str
     util: bool
@@ -162,12 +180,15 @@ async def listar_feedback():
     cursor.execute("SELECT id, texto, util, timestamp FROM feedback ORDER BY id DESC")
     rows = cursor.fetchall()
     conn.close()
-    return {"feedback": rows}
+    feedback = [
+        {"id": row[0], "texto": row[1], "util": bool(row[2]), "timestamp": row[3]}
+        for row in rows
+    ]
+    return {"feedback": feedback}
 
 # -------------------------------
 # Endpoint de Memoria
 # -------------------------------
-
 @app.get("/memoria", tags=["Memoria"])
 async def listar_memoria(limit: int = 10):
     conn = sqlite3.connect("memoria_agente.db")
@@ -180,4 +201,17 @@ async def listar_memoria(limit: int = 10):
     """, (limit,))
     rows = cursor.fetchall()
     conn.close()
-    return {"memoria": rows}
+
+    memoria = [
+        {
+            "id": row[0],
+            "tipo": row[1],
+            "texto": row[2],
+            "resultado": row[3],
+            "fallos_relacionados": json.loads(row[4]) if row[4] else [],
+            "timestamp": row[5],
+        }
+        for row in rows
+    ]
+
+    return {"memoria": memoria}

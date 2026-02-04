@@ -1,4 +1,3 @@
-# memoria.py
 import sqlite3
 import json
 from config import DB_PATH  # importamos la ruta de la base desde config.py
