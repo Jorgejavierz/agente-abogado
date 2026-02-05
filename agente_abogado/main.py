@@ -1,8 +1,8 @@
 # agente_abogado/main.py
 
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 import sqlite3
 import json
 
@@ -27,16 +27,19 @@ def formatear_respuesta(data: dict) -> str:
 3. Jurisprudencia relevante:
 {data.get("jurisprudencia", "No se encontraron fallos relevantes.")}
 
-4. Clasificación del caso:
+4. Fallos relacionados:
+{fallos}
+
+5. Clasificación del caso:
 {data.get("clasificacion", "No se especificó clasificación.")}
 
-5. Riesgos legales:
+6. Riesgos legales:
 {data.get("riesgos", "No se detectaron riesgos específicos.")}
 
-6. Recomendaciones:
+7. Recomendaciones:
 {data.get("recomendaciones", "Se recomienda revisión por abogado humano.")}
 
-7. Conclusión:
+8. Conclusión:
 Este análisis debe ser revisado por un abogado humano antes de tomar decisiones.
 """
 
@@ -50,7 +53,7 @@ app = FastAPI(
 # Configurar CORS
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=ALLOWED_ORIGINS,
+    allow_origins=ALLOWED_ORIGINS,  # asegurate que incluya tu dominio de Vercel
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -102,53 +105,56 @@ async def health():
 # Endpoint único de análisis
 # -------------------------------
 class TextoEntrada(BaseModel):
-    texto: str
+    texto: str = Field(..., min_length=10, description="Texto del contrato o conflicto")
 
 @app.post("/analizar", tags=["Análisis"])
 async def analizar_texto(payload: TextoEntrada):
-    texto = payload.texto
-    agent = app.state.agent
+    try:
+        texto = payload.texto
+        agent = app.state.agent
 
-    # Lógica simple de detección
-    palabras_conflicto = ["denuncia", "conflicto", "discriminación", "acoso", "reclamo"]
-    if any(palabra in texto.lower() for palabra in palabras_conflicto):
-        informe = agent.analizar_conflicto(texto)
-        tipo = "conflicto"
-    else:
-        informe = agent.review_contract(texto)
-        tipo = "contrato"
+        # Lógica simple de detección
+        palabras_conflicto = ["denuncia", "conflicto", "discriminación", "acoso", "reclamo"]
+        if any(palabra in texto.lower() for palabra in palabras_conflicto):
+            informe = agent.analizar_conflicto(texto)
+            tipo = "conflicto"
+        else:
+            informe = agent.review_contract(texto)
+            tipo = "contrato"
 
-    fallos = app.state.buscador.buscar_fallos(tipo)
+        fallos = app.state.buscador.buscar_fallos(tipo)
 
-    # Guardar en memoria con hora local
-    conn = sqlite3.connect("memoria_agente.db")
-    cursor = conn.cursor()
-    cursor.execute("""
-        INSERT INTO memoria (tipo, texto, resultado, fallos_relacionados, timestamp)
-        VALUES (?, ?, ?, ?, datetime('now','localtime'))
-    """, (
-        tipo,
-        texto,
-        informe["resultado"],
-        json.dumps(fallos)
-    ))
-    conn.commit()
-    conn.close()
+        # Guardar en memoria con hora local
+        conn = sqlite3.connect("memoria_agente.db")
+        cursor = conn.cursor()
+        cursor.execute("""
+            INSERT INTO memoria (tipo, texto, resultado, fallos_relacionados, timestamp)
+            VALUES (?, ?, ?, ?, datetime('now','localtime'))
+        """, (
+            tipo,
+            texto,
+            informe.get("resultado", ""),
+            json.dumps(fallos)
+        ))
+        conn.commit()
+        conn.close()
 
-    resultado = {
-        "resultado": informe["resultado"],
-        "fallos_relacionados": fallos,
-        "normativa": informe.get("normativa", []),
-        "jurisprudencia": informe.get("jurisprudencia", ""),
-        "clasificacion": informe.get("clasificacion", ""),
-        "riesgos": informe.get("riesgos", ""),
-        "recomendaciones": informe.get("recomendaciones", "")
-    }
+        resultado = {
+            "resultado": informe.get("resultado", ""),
+            "fallos_relacionados": fallos,
+            "normativa": informe.get("normativa", []),
+            "jurisprudencia": informe.get("jurisprudencia", ""),
+            "clasificacion": informe.get("clasificacion", ""),
+            "riesgos": informe.get("riesgos", ""),
+            "recomendaciones": informe.get("recomendaciones", "")
+        }
 
-    return {
-        "json": resultado,
-        "texto_formateado": formatear_respuesta(resultado)
-    }
+        return {
+            "json": resultado,
+            "texto_formateado": formatear_respuesta(resultado)
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error en análisis: {str(e)}")
 
 # -------------------------------
 # Endpoint de Feedback
