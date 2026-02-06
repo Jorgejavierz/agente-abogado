@@ -1,10 +1,12 @@
 # agente_abogado/main.py
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, UploadFile, File, Form
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 import sqlite3
 import json
+import PyPDF2
+import docx
 
 from agent import LaborLawyerAgent
 from jurisprudencia import Jurisprudencia
@@ -39,14 +41,19 @@ def formatear_respuesta(data: dict) -> str:
 7. Recomendaciones:
 {data.get("recomendaciones", "Se recomienda revisión por abogado humano.")}
 
-8. Conclusión:
+8. OCT (Análisis complementario):
+Clasificación OCT: {data.get("oct", {}).get("clasificacion_oct", "No disponible")}
+Riesgos OCT: {data.get("oct", {}).get("riesgos_oct", "No disponible")}
+Recomendaciones OCT: {data.get("oct", {}).get("recomendaciones_oct", "No disponible")}
+
+9. Conclusión:
 Este análisis debe ser revisado por un abogado humano antes de tomar decisiones.
 """
 
 # Inicializar FastAPI
 app = FastAPI(
     title="Agente Abogado Laboral",
-    version="1.0.0",
+    version="1.3.0",
     description="API para análisis de contratos y conflictos laborales en Argentina"
 )
 
@@ -65,7 +72,6 @@ async def startup_event():
     try:
         app.state.agent = LaborLawyerAgent()
         app.state.buscador = Jurisprudencia()
-        # Inicializar base de datos
         conn = sqlite3.connect("memoria_agente.db")
         cursor = conn.cursor()
         cursor.execute("""
@@ -91,40 +97,72 @@ async def startup_event():
     except Exception as e:
         print(f"Error inicializando dependencias: {e}")
 
-# Endpoint raíz
+# -------------------------------
+# Endpoints de salud
+# -------------------------------
 @app.get("/", tags=["Health"])
 async def root():
     return {"mensaje": "Agente Abogado Laboral inicializado correctamente ✅"}
 
-# Endpoint health check
 @app.get("/health", tags=["Health"])
 async def health():
     return {"status": "ok"}
 
 # -------------------------------
-# Endpoint único de análisis
+# Endpoint de análisis (con soporte de archivo y OCT integrado)
 # -------------------------------
-class TextoEntrada(BaseModel):
-    texto: str = Field(..., min_length=10, description="Texto del contrato o conflicto")
-
 @app.post("/analizar", tags=["Análisis"])
-async def analizar_texto(payload: TextoEntrada):
+async def analizar_texto(
+    file: UploadFile = File(None),
+    texto: str = Form(None)
+):
     try:
-        texto = payload.texto
+        contenido = ""
+
+        # Procesar archivo si existe
+        if file:
+            if file.filename.endswith(".pdf"):
+                reader = PyPDF2.PdfReader(file.file)
+                for page in reader.pages:
+                    contenido += page.extract_text() or ""
+            elif file.filename.endswith(".docx"):
+                docx_file = docx.Document(file.file)
+                for para in docx_file.paragraphs:
+                    contenido += para.text + "\n"
+            elif file.filename.endswith(".txt"):
+                contenido = (await file.read()).decode("utf-8")
+            else:
+                raise HTTPException(status_code=400, detail="Formato no soportado")
+        elif texto:
+            contenido = texto
+        else:
+            raise HTTPException(status_code=400, detail="No se recibió archivo ni texto")
+
         agent = app.state.agent
 
-        # Lógica simple de detección
+        # Lógica de detección básica
         palabras_conflicto = ["denuncia", "conflicto", "discriminación", "acoso", "reclamo"]
-        if any(palabra in texto.lower() for palabra in palabras_conflicto):
-            informe = agent.analizar_conflicto(texto)
+        if any(palabra in contenido.lower() for palabra in palabras_conflicto):
+            informe = agent.analizar_conflicto(contenido)
             tipo = "conflicto"
         else:
-            informe = agent.review_contract(texto)
+            informe = agent.review_contract(contenido)
             tipo = "contrato"
+
+        # 🔹 Algoritmo OCT integrado
+        def ejecutar_oct(texto: str) -> dict:
+            # Placeholder: reemplazá con tu lógica real
+            return {
+                "clasificacion_oct": "Clasificación OCT simulada",
+                "riesgos_oct": "Riesgos detectados por OCT",
+                "recomendaciones_oct": "Recomendaciones OCT"
+            }
+
+        oct_resultado = ejecutar_oct(contenido)
 
         fallos = app.state.buscador.buscar_fallos(tipo)
 
-        # Guardar en memoria con hora local
+        # Guardar en memoria
         conn = sqlite3.connect("memoria_agente.db")
         cursor = conn.cursor()
         cursor.execute("""
@@ -132,13 +170,14 @@ async def analizar_texto(payload: TextoEntrada):
             VALUES (?, ?, ?, ?, datetime('now','localtime'))
         """, (
             tipo,
-            texto,
+            contenido,
             informe.get("resultado", ""),
             json.dumps(fallos)
         ))
         conn.commit()
         conn.close()
 
+        # Combinar informe normal + OCT
         resultado = {
             "resultado": informe.get("resultado", ""),
             "fallos_relacionados": fallos,
@@ -146,18 +185,20 @@ async def analizar_texto(payload: TextoEntrada):
             "jurisprudencia": informe.get("jurisprudencia", ""),
             "clasificacion": informe.get("clasificacion", ""),
             "riesgos": informe.get("riesgos", ""),
-            "recomendaciones": informe.get("recomendaciones", "")
+            "recomendaciones": informe.get("recomendaciones", ""),
+            "oct": oct_resultado
         }
 
         return {
             "json": resultado,
+            "texto": contenido[:1000],  # opcional: devolver parte del texto procesado
             "texto_formateado": formatear_respuesta(resultado)
         }
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error en análisis: {str(e)}")
 
 # -------------------------------
-# Endpoint de Feedback
+# Endpoints de Feedback
 # -------------------------------
 class Feedback(BaseModel):
     texto: str

@@ -7,3 +7,7 @@ loguru
 pytest
 beautifulsoup4
 typing-extensions
+
+# 🔹 Librerías para procesar archivos
+PyPDF2
+python-docx
