@@ -1,5 +1,8 @@
+# 🔹 Framework principal
 fastapi
 uvicorn[standard]
+
+# 🔹 Utilidades generales
 requests
 pydantic
 python-dotenv
@@ -11,3 +14,6 @@ typing-extensions
 # 🔹 Librerías para procesar archivos
 PyPDF2
 python-docx
+
+# 🔹 Necesaria para manejar formularios y archivos en FastAPI
+python-multipart
