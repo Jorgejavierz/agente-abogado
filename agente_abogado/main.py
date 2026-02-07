@@ -52,7 +52,7 @@ Este análisis debe ser revisado por un abogado humano antes de tomar decisiones
 # Inicializar FastAPI
 app = FastAPI(
     title="Agente Abogado Laboral",
-    version="1.4.0",
+    version="1.5.0",
     description="API para análisis de contratos y conflictos laborales en Argentina"
 )
 
@@ -108,7 +108,7 @@ async def health():
     return {"status": "ok"}
 
 # -------------------------------
-# Endpoint de análisis (con soporte de archivo y OCT integrado)
+# Endpoint de análisis
 # -------------------------------
 @app.post("/analizar", tags=["Análisis"])
 async def analizar_texto(
@@ -117,12 +117,6 @@ async def analizar_texto(
 ):
     try:
         contenido = ""
-
-        # Logging para depuración
-        if file:
-            print(f"[LOG] Recibí archivo: {file.filename}")
-        if texto:
-            print(f"[LOG] Recibí texto: {texto[:200]}...")
 
         # Procesar archivo si existe
         if file:
@@ -143,18 +137,24 @@ async def analizar_texto(
 
         agent = app.state.agent
 
-        # Lógica de detección básica
-        palabras_conflicto = ["denuncia", "conflicto", "discriminación", "acoso", "reclamo"]
-        if any(palabra in contenido.lower() for palabra in palabras_conflicto):
-            informe = agent.analizar_conflicto(contenido)
-            tipo = "conflicto"
+        # 🔎 Nueva detección: documentos judiciales
+        palabras_judiciales = ["juzgado", "expediente", "autos", "pronto despacho", "sentencia"]
+        if any(p in contenido.lower() for p in palabras_judiciales):
+            informe = {"resultado": "Este documento es un escrito judicial, no un contrato. Se recomienda revisión humana."}
+            tipo = "judicial"
         else:
-            informe = agent.review_contract(contenido)
-            tipo = "contrato"
+            # Lógica de detección básica
+            palabras_conflicto = ["denuncia", "conflicto", "discriminación", "acoso", "reclamo"]
+            if any(palabra in contenido.lower() for palabra in palabras_conflicto):
+                informe = agent.analizar_conflicto(contenido)
+                tipo = "conflicto"
+            else:
+                informe = agent.review_contract(contenido)
+                tipo = "contrato"
 
-        # Evitar respuestas repetidas: si no hay hallazgos, devolver mensaje claro
+        # Evitar respuestas repetidas
         if not informe.get("resultado"):
-            informe["resultado"] = "No se encontraron cláusulas abusivas específicas en este texto."
+            informe["resultado"] = "No se detectaron hallazgos específicos en este texto."
 
         # 🔹 Algoritmo OCT integrado
         def ejecutar_oct(texto: str) -> dict:
