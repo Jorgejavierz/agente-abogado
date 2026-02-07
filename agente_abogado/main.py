@@ -1,5 +1,3 @@
-# agente_abogado/main.py
-
 from fastapi import FastAPI, HTTPException, UploadFile, File, Form
 from fastapi.middleware.cors import CORSMiddleware
 import sqlite3
@@ -15,44 +13,44 @@ from config import ALLOWED_ORIGINS
 # Función para formatear respuestas narrativas
 # -------------------------------
 def formatear_respuesta(data: dict) -> str:
-    normativa = "\n".join([f"- {n}" for n in data.get("normativa", [])]) or "No se encontró normativa aplicable."
-    fallos = "\n".join([f"- {f['titulo']}" for f in data.get("fallos_relacionados", [])]) or "Sin resultados"
+    normativa = "\n".join([f"- {n}" for n in data.get("normativa", [])]) or "No se identificó normativa directamente aplicable."
+    fallos = "\n".join([f"- {f['titulo']}" for f in data.get("fallos_relacionados", [])]) or "No se hallaron fallos relacionados."
 
     return f"""
 1. Resumen ejecutivo:
-{data.get("resultado", "Sin conclusión")}
+{data.get("resultado", "El análisis automático no detectó hallazgos específicos. Se recomienda revisión humana especializada.")}
 
 2. Normativa aplicable:
 {normativa}
 
 3. Jurisprudencia relevante:
-{data.get("jurisprudencia", "No se encontraron fallos relevantes.")}
+{data.get("jurisprudencia", "No se encontraron antecedentes jurisprudenciales relevantes.")}
 
 4. Fallos relacionados:
 {fallos}
 
 5. Clasificación del caso:
-{data.get("clasificacion", "No se especificó clasificación.")}
+{data.get("clasificacion", "Sin clasificación automática disponible.")}
 
 6. Riesgos legales:
-{data.get("riesgos", "No se detectaron riesgos específicos.")}
+{data.get("riesgos", "No se detectaron riesgos específicos en esta etapa preliminar.")}
 
 7. Recomendaciones:
-{data.get("recomendaciones", "Se recomienda revisión por abogado humano.")}
+{data.get("recomendaciones", "Se recomienda revisión jurídica especializada para determinar implicancias y estrategias.")}
 
 8. OCT (Análisis complementario):
-Clasificación OCT: {data.get("oct", {}).get("clasificacion_oct", "No disponible")}
-Riesgos OCT: {data.get("oct", {}).get("riesgos_oct", "No disponible")}
-Recomendaciones OCT: {data.get("oct", {}).get("recomendaciones_oct", "No disponible")}
+- Clasificación OCT: {data.get("oct", {}).get("clasificacion_oct", "No disponible")}
+- Riesgos OCT: {data.get("oct", {}).get("riesgos_oct", "No disponible")}
+- Recomendaciones OCT: {data.get("oct", {}).get("recomendaciones_oct", "No disponible")}
 
 9. Conclusión:
-Este análisis debe ser revisado por un abogado humano antes de tomar decisiones.
+El presente informe constituye una aproximación automatizada. No reemplaza la revisión jurídica especializada. Se recomienda la intervención de un abogado para evaluar riesgos y definir estrategias.
 """
 
 # Inicializar FastAPI
 app = FastAPI(
     title="Agente Abogado Laboral",
-    version="1.5.0",
+    version="1.6.0",
     description="API para análisis de contratos y conflictos laborales en Argentina"
 )
 
@@ -106,7 +104,6 @@ async def root():
 @app.get("/health", tags=["Health"])
 async def health():
     return {"status": "ok"}
-
 # -------------------------------
 # Endpoint de análisis
 # -------------------------------
@@ -137,13 +134,12 @@ async def analizar_texto(
 
         agent = app.state.agent
 
-        # 🔎 Nueva detección: documentos judiciales
+        # 🔎 Detección de tipo de documento
         palabras_judiciales = ["juzgado", "expediente", "autos", "pronto despacho", "sentencia"]
         if any(p in contenido.lower() for p in palabras_judiciales):
-            informe = {"resultado": "Este documento es un escrito judicial, no un contrato. Se recomienda revisión humana."}
+            informe = {"resultado": "El documento corresponde a un escrito judicial. Se recomienda revisión humana especializada."}
             tipo = "judicial"
         else:
-            # Lógica de detección básica
             palabras_conflicto = ["denuncia", "conflicto", "discriminación", "acoso", "reclamo"]
             if any(palabra in contenido.lower() for palabra in palabras_conflicto):
                 informe = agent.analizar_conflicto(contenido)
@@ -152,7 +148,6 @@ async def analizar_texto(
                 informe = agent.review_contract(contenido)
                 tipo = "contrato"
 
-        # Evitar respuestas repetidas
         if not informe.get("resultado"):
             informe["resultado"] = "No se detectaron hallazgos específicos en este texto."
 
@@ -165,7 +160,6 @@ async def analizar_texto(
             }
 
         oct_resultado = ejecutar_oct(contenido)
-
         fallos = app.state.buscador.buscar_fallos(tipo)
 
         # Guardar en memoria
@@ -183,7 +177,6 @@ async def analizar_texto(
         conn.commit()
         conn.close()
 
-        # Combinar informe normal + OCT
         resultado = {
             "resultado": informe.get("resultado", ""),
             "fallos_relacionados": fallos,
