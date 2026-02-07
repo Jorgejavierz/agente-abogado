@@ -50,7 +50,7 @@ El presente informe constituye una aproximación automatizada. No reemplaza la r
 # Inicializar FastAPI
 app = FastAPI(
     title="Agente Abogado Laboral",
-    version="1.6.0",
+    version="1.7.0",
     description="API para análisis de contratos y conflictos laborales en Argentina"
 )
 
@@ -68,7 +68,7 @@ app.add_middleware(
 async def startup_event():
     try:
         app.state.agent = LaborLawyerAgent()
-        app.state.buscador = Jurisprudencia()
+        app.state.buscador = Jurisprudencia()  # ahora con scraping + semántica
         conn = sqlite3.connect("memoria_agente.db")
         cursor = conn.cursor()
         cursor.execute("""
@@ -104,6 +104,7 @@ async def root():
 @app.get("/health", tags=["Health"])
 async def health():
     return {"status": "ok"}
+
 # -------------------------------
 # Endpoint de análisis
 # -------------------------------
@@ -160,7 +161,11 @@ async def analizar_texto(
             }
 
         oct_resultado = ejecutar_oct(contenido)
-        fallos = app.state.buscador.buscar_fallos(tipo)
+
+        # 🔹 Buscar fallos (scraping + semántica)
+        fallos_scraping = app.state.buscador.buscar_fallos_scraping(tipo)
+        fallos_semanticos = app.state.buscador.buscar_fallos_semanticos(contenido, tema=tipo)
+        fallos = fallos_scraping if fallos_scraping and fallos_scraping[0]["link"] else fallos_semanticos
 
         # Guardar en memoria
         conn = sqlite3.connect("memoria_agente.db")
@@ -195,7 +200,8 @@ async def analizar_texto(
         }
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error en análisis: {str(e)}")
-    # -------------------------------
+
+# -------------------------------
 # Endpoints de Feedback
 # -------------------------------
 @app.post("/feedback", tags=["Feedback"])
