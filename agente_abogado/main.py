@@ -2,7 +2,6 @@
 
 from fastapi import FastAPI, HTTPException, UploadFile, File, Form
 from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel, Field
 import sqlite3
 import json
 import PyPDF2
@@ -53,14 +52,14 @@ Este análisis debe ser revisado por un abogado humano antes de tomar decisiones
 # Inicializar FastAPI
 app = FastAPI(
     title="Agente Abogado Laboral",
-    version="1.3.0",
+    version="1.4.0",
     description="API para análisis de contratos y conflictos laborales en Argentina"
 )
 
 # Configurar CORS
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=ALLOWED_ORIGINS,  # asegurate que incluya tu dominio de Vercel
+    allow_origins=ALLOWED_ORIGINS,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -95,7 +94,7 @@ async def startup_event():
         conn.commit()
         conn.close()
     except Exception as e:
-        print(f"Error inicializando dependencias: {e}")
+        print(f"[ERROR] Inicializando dependencias: {e}")
 
 # -------------------------------
 # Endpoints de salud
@@ -119,16 +118,20 @@ async def analizar_texto(
     try:
         contenido = ""
 
+        # Logging para depuración
+        if file:
+            print(f"[LOG] Recibí archivo: {file.filename}")
+        if texto:
+            print(f"[LOG] Recibí texto: {texto[:200]}...")
+
         # Procesar archivo si existe
         if file:
             if file.filename.endswith(".pdf"):
                 reader = PyPDF2.PdfReader(file.file)
-                for page in reader.pages:
-                    contenido += page.extract_text() or ""
+                contenido = "".join([page.extract_text() or "" for page in reader.pages])
             elif file.filename.endswith(".docx"):
                 docx_file = docx.Document(file.file)
-                for para in docx_file.paragraphs:
-                    contenido += para.text + "\n"
+                contenido = "\n".join([para.text for para in docx_file.paragraphs])
             elif file.filename.endswith(".txt"):
                 contenido = (await file.read()).decode("utf-8")
             else:
@@ -149,9 +152,12 @@ async def analizar_texto(
             informe = agent.review_contract(contenido)
             tipo = "contrato"
 
+        # Evitar respuestas repetidas: si no hay hallazgos, devolver mensaje claro
+        if not informe.get("resultado"):
+            informe["resultado"] = "No se encontraron cláusulas abusivas específicas en este texto."
+
         # 🔹 Algoritmo OCT integrado
         def ejecutar_oct(texto: str) -> dict:
-            # Placeholder: reemplazá con tu lógica real
             return {
                 "clasificacion_oct": "Clasificación OCT simulada",
                 "riesgos_oct": "Riesgos detectados por OCT",
@@ -191,7 +197,7 @@ async def analizar_texto(
 
         return {
             "json": resultado,
-            "texto": contenido[:1000],  # opcional: devolver parte del texto procesado
+            "texto": contenido[:1000],
             "texto_formateado": formatear_respuesta(resultado)
         }
     except Exception as e:
@@ -200,20 +206,15 @@ async def analizar_texto(
 # -------------------------------
 # Endpoints de Feedback
 # -------------------------------
-class Feedback(BaseModel):
-    texto: str
-    util: bool
-    timestamp: str
-
 @app.post("/feedback", tags=["Feedback"])
-async def guardar_feedback(feedback: Feedback):
+async def guardar_feedback(feedback: dict):
     try:
         conn = sqlite3.connect("memoria_agente.db")
         cursor = conn.cursor()
         cursor.execute("""
             INSERT INTO feedback (texto, util, timestamp)
             VALUES (?, ?, ?)
-        """, (feedback.texto, feedback.util, feedback.timestamp))
+        """, (feedback["texto"], feedback["util"], feedback["timestamp"]))
         conn.commit()
         conn.close()
         return {"mensaje": "Feedback guardado correctamente ✅"}
