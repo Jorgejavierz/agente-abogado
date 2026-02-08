@@ -20,3 +20,4 @@ python-multipart
 
 # Modelos semánticos y embeddings
 sentence-transformers
+faiss-cpu
