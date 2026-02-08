@@ -17,3 +17,6 @@ python-docx
 
 # Necesaria para manejar formularios y archivos en FastAPI
 python-multipart
+
+# Modelos semánticos y embeddings
+sentence-transformers
