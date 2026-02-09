@@ -10,4 +10,4 @@ venv/
 # Ignorar archivos de configuración local
 *.env
 *.log
-*.db
+*.db    
