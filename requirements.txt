@@ -18,6 +18,6 @@ python-docx
 # Necesaria para manejar formularios y archivos en FastAPI
 python-multipart
 
-# Modelos semánticos y embeddings
-sentence-transformers
-faiss-cpu
+# Modelos semánticos y embeddings (optimizado)
+sentence-transformers==2.2.2
+faiss-cpu==1.7.4

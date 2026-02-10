@@ -1,13 +1,16 @@
-from fastapi import FastAPI, HTTPException, UploadFile, File, Form
+from fastapi import FastAPI, HTTPException, UploadFile, File, Form, Query
 from fastapi.middleware.cors import CORSMiddleware
 import sqlite3
 import json
 import PyPDF2
 import docx
+import numpy as np
+import faiss
 
 from agent import LaborLawyerAgent
 from jurisprudencia import Jurisprudencia
 from config import ALLOWED_ORIGINS
+from pydantic import BaseModel
 
 # -------------------------------
 # Función para formatear respuestas narrativas
@@ -47,7 +50,9 @@ def formatear_respuesta(data: dict) -> str:
 El presente informe constituye una aproximación automatizada. No reemplaza la revisión jurídica especializada. Se recomienda la intervención de un abogado para evaluar riesgos, validar hallazgos y definir un curso de acción confiable.
 """
 
+# -------------------------------
 # Inicializar FastAPI
+# -------------------------------
 app = FastAPI(
     title="Agente Abogado Laboral",
     version="1.7.0",
@@ -63,12 +68,20 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Inicializar dependencias en startup
+# -------------------------------
+# Inicializar dependencias en startup (optimizado)
+# -------------------------------
 @app.on_event("startup")
 async def startup_event():
     try:
+        # Inicializamos solo el agente liviano
         app.state.agent = LaborLawyerAgent()
-        app.state.buscador = Jurisprudencia()  # ahora con scraping + semántica
+
+        # ⚠️ Jurisprudencia se cargará bajo demanda en los endpoints
+        # if not hasattr(app.state, "buscador"):
+        #     app.state.buscador = Jurisprudencia()
+
+        # Inicializamos la base de datos y tablas
         conn = sqlite3.connect("memoria_agente.db")
         cursor = conn.cursor()
         cursor.execute("""
@@ -104,7 +117,6 @@ async def root():
 @app.get("/health", tags=["Health"])
 async def health():
     return {"status": "ok"}
-
 # -------------------------------
 # Endpoint de análisis
 # -------------------------------
@@ -163,9 +175,7 @@ async def analizar_texto(
         oct_resultado = ejecutar_oct(contenido)
 
         # 🔹 Buscar fallos (scraping + semántica)
-        fallos_scraping = app.state.buscador.buscar_fallos_scraping(tipo)
-        fallos_semanticos = app.state.buscador.buscar_fallos_semanticos(contenido, tema=tipo)
-        fallos = fallos_scraping if fallos_scraping and fallos_scraping[0]["link"] else fallos_semanticos
+        fallos = app.state.buscador.buscar_fallos(contenido, top_k=5, tema=tipo)
 
         # Guardar en memoria
         conn = sqlite3.connect("memoria_agente.db")
@@ -231,7 +241,6 @@ async def listar_feedback():
         for row in rows
     ]
     return {"feedback": feedback}
-
 # -------------------------------
 # Endpoint de Memoria
 # -------------------------------
@@ -261,3 +270,76 @@ async def listar_memoria(limit: int = 10):
     ]
 
     return {"memoria": memoria}
+
+# -------------------------------
+# Endpoints de Jurisprudencia (administración)
+# -------------------------------
+
+class FalloInput(BaseModel):
+    titulo: str
+    texto: str
+    tema: str
+    tribunal: str
+    fecha: str
+    link: str | None = None
+
+@app.post("/agregar_fallo", tags=["Jurisprudencia"])
+async def agregar_fallo(fallo: FalloInput):
+    """
+    Agrega un fallo manualmente a la base local e indexa en FAISS.
+    """
+    app.state.buscador.agregar_fallo(
+        titulo=fallo.titulo,
+        texto=fallo.texto,
+        tema=fallo.tema,
+        tribunal=fallo.tribunal,
+        fecha=fallo.fecha,
+        link=fallo.link
+    )
+    return {"mensaje": "Fallo agregado e indexado correctamente ✅", "titulo": fallo.titulo}
+
+@app.get("/listar_fallos", tags=["Jurisprudencia"])
+async def listar_fallos():
+    """
+    Lista todos los fallos cargados en la base local con sus metadatos.
+    """
+    if not app.state.buscador.fallos:
+        return {"mensaje": "No hay fallos cargados en la base local."}
+
+    resultados = [
+        {
+            "titulo": fallo["titulo"],
+            "tema": fallo["tema"],
+            "tribunal": fallo["tribunal"],
+            "fecha": fallo["fecha"],
+            "fuente": fallo.get("link", "Fuente local")
+        }
+        for fallo in app.state.buscador.fallos
+    ]
+
+    return {"fallos": resultados}
+
+@app.delete("/eliminar_fallo/{titulo}", tags=["Jurisprudencia"])
+async def eliminar_fallo(titulo: str):
+    """
+    Elimina un fallo de la base local por su título y reconstruye el índice FAISS.
+    """
+    fallo_encontrado = None
+    for fallo in app.state.buscador.fallos:
+        if fallo["titulo"].lower() == titulo.lower():
+            fallo_encontrado = fallo
+            break
+
+    if not fallo_encontrado:
+        raise HTTPException(status_code=404, detail=f"No se encontró ningún fallo con el título: {titulo}")
+
+    app.state.buscador.fallos.remove(fallo_encontrado)
+
+    if app.state.buscador.fallos:
+        embeddings = np.array([f["embedding"] for f in app.state.buscador.fallos])
+        app.state.buscador.index = faiss.IndexFlatL2(embeddings.shape[1])
+        app.state.buscador.index.add(embeddings)
+    else:
+        app.state.buscador.index = None
+
+    return {"mensaje": f"Fallo '{titulo}' eliminado correctamente ✅"}
