@@ -1,4 +1,3 @@
-# jurisprudencia.py
 import requests
 from bs4 import BeautifulSoup
 from urllib.parse import urljoin
@@ -28,53 +27,70 @@ class Jurisprudencia:
         self.index = None
 
     # -------------------------------
-    # Scraping de portal público
+    # Scraping mejorado
     # -------------------------------
-    def buscar_fallos_scraping(self, query: str) -> list[dict]:
-        """Busca fallos judiciales en el portal de Neuquén por palabra clave."""
+    def buscar_fallos_scraping(self, query: str, max_resultados=10) -> list[dict]:
+        """Busca fallos judiciales en el portal público por palabra clave."""
         try:
             response = requests.get(self.base_url, headers=self.headers, timeout=10)
             response.raise_for_status()
         except requests.RequestException as e:
             logger.error(f"No se pudo conectar con la página {self.base_url}: {e}")
-            return [{"titulo": "Error de conexión", "link": None}]
+            return [{"titulo": "Error de conexión", "link": None, "contenido": None}]
 
         soup = BeautifulSoup(response.text, "html.parser")
 
         resultados = []
+        vistos = set()
+
         for link in soup.find_all("a", href=True):
             titulo = link.get_text(strip=True)
             href = urljoin(self.base_url, link["href"])
 
-            if query.lower() in titulo.lower():
-                resultados.append({"titulo": titulo, "link": href})
+            if query.lower() in titulo.lower() and titulo not in vistos:
+                # Intentar extraer contenido del fallo
+                try:
+                    fallo_resp = requests.get(href, headers=self.headers, timeout=10)
+                    fallo_resp.raise_for_status()
+                    fallo_soup = BeautifulSoup(fallo_resp.text, "html.parser")
+                    contenido = fallo_soup.get_text(" ", strip=True)[:500] + "..."
+                except Exception:
+                    contenido = "No se pudo extraer el contenido completo."
 
-        # Elimina duplicados
-        resultados_unicos = []
-        vistos = set()
-        for r in resultados:
-            if r["titulo"] and r["titulo"] not in vistos:
-                resultados_unicos.append(r)
-                vistos.add(r["titulo"])
+                resultados.append({
+                    "titulo": titulo,
+                    "link": href,
+                    "contenido": contenido,
+                    "explicacion": (
+                        f"Este fallo encontrado en el portal oficial se relaciona con la consulta '{query}'. "
+                        f"Fuente: {href}"
+                    )
+                })
+                vistos.add(titulo)
 
-        if not resultados_unicos:
+            if len(resultados) >= max_resultados:
+                break
+
+        if not resultados:
             logger.info(f"No se encontraron fallos relacionados con: {query}")
-            return [{"titulo": "Sin resultados", "link": None}]
+            return [{"titulo": "Sin resultados", "link": None, "contenido": None}]
 
-        return resultados_unicos
+        return resultados
 
     # -------------------------------
     # Base local con embeddings
     # -------------------------------
-    def agregar_fallo(self, titulo, texto, tema, tribunal, fecha):
+    def agregar_fallo(self, titulo, texto, tema, tribunal, fecha, link=None):
         """Agrega un fallo con metadatos y lo indexa semánticamente."""
-        embedding = self.model.encode([texto])[0]
+        enriched_text = f"Tema: {tema} | Tribunal: {tribunal} | Fecha: {fecha} | Texto: {texto}"
+        embedding = self.model.encode([enriched_text])[0]
         self.fallos.append({
             "titulo": titulo,
             "texto": texto,
             "tema": tema,
             "tribunal": tribunal,
             "fecha": fecha,
+            "link": link,
             "embedding": embedding
         })
         self._actualizar_index()
@@ -86,24 +102,84 @@ class Jurisprudencia:
             self.index = faiss.IndexFlatL2(embeddings.shape[1])
             self.index.add(embeddings)
 
-    def buscar_fallos_semanticos(self, consulta, top_k=5, tema=None):
+    def buscar_fallos_semanticos(self, consulta, top_k=5, tema=None, ordenar_por_fecha=True):
         """Busca fallos relevantes por similitud semántica y opcionalmente por tema."""
         if not self.index:
-            return []
+            return [{"mensaje": "No hay fallos indexados en la base local."}]
 
-        consulta_emb = self.model.encode([consulta])[0].reshape(1, -1)
+        consulta_texto = f"Consulta: {consulta} | Tema: {tema if tema else 'general'}"
+        consulta_emb = self.model.encode([consulta_texto])[0].reshape(1, -1)
+
         distancias, indices = self.index.search(consulta_emb, top_k)
 
         resultados = []
-        for idx in indices[0]:
+        for idx, distancia in zip(indices[0], distancias[0]):
             fallo = self.fallos[idx]
-            if tema and fallo["tema"] != tema:
+            if tema and fallo["tema"].lower() != tema.lower():
                 continue
             resultados.append({
                 "titulo": fallo["titulo"],
                 "tribunal": fallo["tribunal"],
                 "fecha": fallo["fecha"],
                 "tema": fallo["tema"],
-                "texto": fallo["texto"][:300] + "..."
+                "fragmento": fallo["texto"][:300] + "...",
+                "relevancia": round(float(1 / (1 + distancia)), 3),
+                "fuente": fallo.get("link", "Fuente local"),
+                "explicacion": (
+                    f"Este fallo del {fallo['tribunal']} ({fallo['fecha']}) "
+                    f"se relaciona con el tema '{fallo['tema']}' y presenta "
+                    f"similitudes semánticas con la consulta realizada."
+                )
             })
+
+        if ordenar_por_fecha:
+            resultados.sort(key=lambda x: x.get("fecha", ""), reverse=True)
+
+        if not resultados:
+            return [{"mensaje": f"No se encontraron fallos relevantes para: {consulta}"}]
+
+        return resultados
+
+    # -------------------------------
+    # Método maestro
+    # -------------------------------
+    def buscar_fallos(self, consulta, top_k=5, tema=None, incluir_scraping=True):
+        """
+        Método maestro que combina:
+        - Scraping de portal oficial
+        - Búsqueda semántica en base local
+        Devuelve resultados narrativos, transparentes y ordenados.
+        """
+        resultados = []
+
+        # 1. Búsqueda semántica local
+        semanticos = self.buscar_fallos_semanticos(
+            consulta=consulta,
+            top_k=top_k,
+            tema=tema,
+            ordenar_por_fecha=True
+        )
+        for r in semanticos:
+            r["origen"] = "Base local (FAISS)"
+            resultados.append(r)
+
+        # 2. Scraping oficial
+        if incluir_scraping:
+            scraping = self.buscar_fallos_scraping(query=consulta, max_resultados=top_k)
+            for r in scraping:
+                r["origen"] = "Portal oficial"
+                resultados.append(r)
+
+        # 3. Ordenar resultados por relevancia y fecha
+        resultados.sort(
+            key=lambda x: (
+                x.get("relevancia", 0),
+                x.get("fecha", "")
+            ),
+            reverse=True
+        )
+
+        if not resultados:
+            return [{"mensaje": f"No se encontraron fallos relevantes para la consulta: {consulta}"}]
+
         return resultados
