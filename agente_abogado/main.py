@@ -15,7 +15,7 @@ app = FastAPI(
     description=APP_DESCRIPTION
 )
 
-# Configurar CORS
+# Configuración de CORS
 app.add_middleware(
     CORSMiddleware,
     allow_origins=ALLOWED_ORIGINS,
@@ -24,14 +24,14 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Evento de startup
-@app.on_event("startup")
-async def on_startup():
-    await startup_event(app)
-
 # Registrar routers
 app.include_router(health.router)
 app.include_router(analizar.router)
 app.include_router(feedback.router)
 app.include_router(memoria.router)
 app.include_router(jurisprudenciab.router)
+
+# Evento de startup
+@app.on_event("startup")
+async def on_startup():
+    await startup_event(app)

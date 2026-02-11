@@ -4,7 +4,7 @@
 ALLOWED_ORIGINS = [
     "http://localhost:3000",   # Frontend local
     "http://127.0.0.1:3000",   # Alternativa local
-    "https://tu-dominio.com",  # Producción (ajusta según tu despliegue)
+    "https://agente-abogado.onrender.com"  # URL pública en Render
 ]
 
 # Configuración general de la aplicación
@@ -14,20 +14,3 @@ APP_DESCRIPTION = "API para análisis de contratos y conflictos laborales en Arg
 
 # Ruta de la base de datos SQLite
 DB_PATH = "memoria_agente.db"
-from fastapi import FastAPI
-from fastapi.middleware.cors import CORSMiddleware
-from config import ALLOWED_ORIGINS, APP_TITLE, APP_VERSION, APP_DESCRIPTION
-
-app = FastAPI(
-    title=APP_TITLE,
-    version=APP_VERSION,
-    description=APP_DESCRIPTION
-)
-
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=ALLOWED_ORIGINS,
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
