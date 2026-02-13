@@ -4,8 +4,8 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from agente_abogado.config import ALLOWED_ORIGINS, APP_TITLE, APP_VERSION, APP_DESCRIPTION
 
-# Importar routers
-from routes import health, analizar, feedback, memoria, jurisprudenciab
+# Importar routers desde la carpeta routes
+from agente_abogado.routes import health, analizar, feedback, memoria, jurisprudenciab
 
 # Inicializar aplicación FastAPI
 app = FastAPI(
