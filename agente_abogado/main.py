@@ -2,7 +2,7 @@
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from config import ALLOWED_ORIGINS, APP_TITLE, APP_VERSION, APP_DESCRIPTION
+from agente_abogado.config import ALLOWED_ORIGINS, APP_TITLE, APP_VERSION, APP_DESCRIPTION
 from startup import startup_event
 
 # Importar routers
