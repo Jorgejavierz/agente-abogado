@@ -2,9 +2,11 @@
 
 # Lista de orígenes permitidos para CORS
 ALLOWED_ORIGINS = [
-    "http://localhost:3000",   # Frontend local
-    "http://127.0.0.1:3000",   # Alternativa local
-    "https://agente-abogado.onrender.com"  # URL pública en Render
+    "http://localhost:8000",   # Backend local
+    "http://127.0.0.1:8000",   # Alternativa local
+    "http://localhost:3000",   # Frontend local en React
+    "https://agente-abogado.onrender.com",  # URL pública en Render
+    "https://agente-laboral-frontend.vercel.app"  # Frontend en Vercel
 ]
 
 # Configuración general de la aplicación
