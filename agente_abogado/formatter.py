@@ -1,46 +1,61 @@
 # formatter.py
 
 class ResponseFormatter:
-    """
-    Clase encargada de dar formato narrativo a las respuestas
-    generadas por el agente laboral.
-    """
-
     @staticmethod
-    def formatear(data: dict) -> str:
-        normativa = "\n".join([f"- {n}" for n in data.get("normativa", [])]) \
-                    or "No se identificó normativa directamente aplicable al documento analizado."
-        fallos = "\n".join([f"- {f.get('titulo', 'Sin título')}" for f in data.get("fallos_relacionados", [])]) \
-                 or "No se hallaron fallos relacionados en la base consultada."
+    def formatear(resultado: dict) -> str:
+        """
+        Convierte la respuesta del agente en un informe narrativo profesional.
+        """
+        partes = []
 
-        return f"""
-1. Resumen ejecutivo:
-{data.get("resultado", "El análisis automático no detectó hallazgos específicos. Este tipo de documentos requiere revisión humana especializada.")}
+        # 1. Resumen ejecutivo
+        partes.append("1. Resumen ejecutivo:")
+        partes.append(resultado.get("resumen", resultado.get("resultado", "No disponible")))
+        partes.append("")
 
-2. Normativa aplicable:
-{normativa}
+        # 2. Normativa aplicable
+        partes.append("2. Normativa aplicable:")
+        normativa = resultado.get("normativa", [])
+        if normativa:
+            for norma in normativa:
+                partes.append(f"- {norma}")
+        else:
+            partes.append("No se identificaron normas relevantes.")
+        partes.append("")
 
-3. Jurisprudencia relevante:
-{data.get("jurisprudencia", "No se encontraron antecedentes jurisprudenciales relevantes para este caso.")}
+        # 3. Jurisprudencia relevante
+        partes.append("3. Jurisprudencia relevante:")
+        partes.append(resultado.get("jurisprudencia", "No disponible"))
+        partes.append("")
 
-4. Fallos relacionados:
-{fallos}
+        # 4. Fallos relacionados
+        partes.append("4. Fallos relacionados:")
+        fallos = resultado.get("fallos_relacionados", [])
+        if fallos:
+            for fallo in fallos:
+                partes.append(f"- {fallo}")
+        else:
+            partes.append("No se encontraron fallos relacionados.")
+        partes.append("")
 
-5. Clasificación del caso:
-{data.get("clasificacion", "Sin clasificación automática disponible. Se recomienda evaluación jurídica.")}
+        # 5. Clasificación del caso
+        partes.append("5. Clasificación del caso:")
+        partes.append(resultado.get("clasificacion", "No disponible"))
+        partes.append("")
 
-6. Riesgos legales:
-{data.get("riesgos", "No se detectaron riesgos específicos en esta etapa preliminar. Una revisión experta podría identificar aspectos adicionales.")}
+        # 6. Riesgos legales
+        partes.append("6. Riesgos legales:")
+        partes.append(resultado.get("riesgos", "No disponible"))
+        partes.append("")
 
-7. Recomendaciones:
-{data.get("recomendaciones", "Se recomienda revisión jurídica especializada para determinar implicancias y definir estrategias.")}
+        # 7. Recomendaciones
+        partes.append("7. Recomendaciones:")
+        partes.append(resultado.get("recomendaciones", "No disponible"))
+        partes.append("")
 
-8. OCT (Análisis complementario):
-- Clasificación OCT: {data.get("oct", {}).get("clasificacion_oct", "No disponible")}
-- Riesgos OCT: {data.get("oct", {}).get("riesgos_oct", "No disponible")}
-- Recomendaciones OCT: {data.get("oct", {}).get("recomendaciones_oct", "No disponible")}
+        # 8. Conclusión
+        partes.append("8. Conclusión:")
+        partes.append(resultado.get("conclusion", "Este informe es una aproximación automatizada. No reemplaza la revisión jurídica especializada."))
+        partes.append("")
 
-9. Conclusión:
-El presente informe constituye una aproximación automatizada. No reemplaza la revisión jurídica especializada. 
-Se recomienda la intervención de un abogado para evaluar riesgos, validar hallazgos y definir un curso de acción confiable.
-"""
+        return "\n".join(partes)
