@@ -1,15 +1,17 @@
 # legal_agent.py
 
-from agente_abogado.juris_search import Jurisprudencia
+from agente_abogado.jurisprudencia import Jurisprudencia
 
 class LaborLawyerAgent:
     def __init__(self):
+        # Inicializar buscador de jurisprudencia
         self.buscador = Jurisprudencia()
 
     def responder_pregunta(self, texto: str) -> dict:
         """
         Responde cualquier consulta laboral con un informe narrativo completo.
         """
+
         # Clasificación básica del tipo de consulta
         if "contrato" in texto.lower():
             clasificacion = "Revisión de contrato"
@@ -18,10 +20,10 @@ class LaborLawyerAgent:
         else:
             clasificacion = "Consulta general"
 
-        # Buscar jurisprudencia relacionada
+        # Buscar jurisprudencia relacionada (seguro porque ahora existe buscar_fallos)
         fallos_relacionados = self.buscador.buscar_fallos(texto)
 
-        # Construir respuesta narrativa
+        # Construir respuesta narrativa premium
         resultado = {
             "resumen": f"Consulta recibida: {texto}",
             "normativa": [
