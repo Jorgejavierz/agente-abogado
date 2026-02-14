@@ -2,7 +2,7 @@
 
 from fastapi import APIRouter
 from pydantic import BaseModel
-from db import MemoriaDB
+from agente_abogado.db import MemoriaDB
 
 router = APIRouter(tags=["Feedback"])
 db = MemoriaDB()
