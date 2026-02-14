@@ -3,6 +3,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from agente_abogado.config import ALLOWED_ORIGINS, APP_TITLE, APP_VERSION, APP_DESCRIPTION
+from agente_abogado.legal_agent import LaborLawyerAgent  # importar el agente
 
 # Importar routers desde la carpeta routes
 from agente_abogado.routes import (
@@ -29,6 +30,9 @@ app.add_middleware(
     allow_methods=["*"],             # permitir todos los métodos
     allow_headers=["*"],             # permitir todos los headers
 )
+
+# Inicializar el agente y guardarlo en el estado de la app
+app.state.agent = LaborLawyerAgent()
 
 # Registrar routers
 app.include_router(health.router)
