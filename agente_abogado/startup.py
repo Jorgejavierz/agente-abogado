@@ -1,8 +1,8 @@
 # startup.py
 
-from legal_agent import LaborLawyerAgent
-from juris_search import Jurisprudencia
-from db import MemoriaDB
+from agente_abogado.legal_agent import LaborLawyerAgent
+from agente_abogado.juris_search import Jurisprudencia
+from agente_abogado.db import MemoriaDB
 
 async def startup_event(app):
     """

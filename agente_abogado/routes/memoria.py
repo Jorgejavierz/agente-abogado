@@ -1,7 +1,7 @@
 # routes/memoria.py
 
 from fastapi import APIRouter
-from db import MemoriaDB
+from agente_abogado.db import MemoriaDB
 
 router = APIRouter(tags=["Memoria"])
 db = MemoriaDB()
