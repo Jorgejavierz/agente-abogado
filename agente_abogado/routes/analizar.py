@@ -2,7 +2,7 @@
 
 from fastapi import APIRouter, Request
 from pydantic import BaseModel
-from formatter import ResponseFormatter
+from agente_abogado.formatter import ResponseFormatter
 
 router = APIRouter(tags=["Analizar"])
 
