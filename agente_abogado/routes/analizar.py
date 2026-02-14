@@ -9,7 +9,7 @@ router = APIRouter(tags=["Analizar"])
 class AnalizarInput(BaseModel):
     texto: str | None = None
     text: str | None = None
-    tipo: str  # "contrato", "conflicto" o "consulta"
+    tipo: str | None = "consulta"  # valor por defecto
 
     @property
     def contenido(self) -> str:
