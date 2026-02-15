@@ -1,6 +1,6 @@
 # legal_agent.py
 
-from agente_abogado.jurisprudencia import Jurisprudencia
+from agente_abogado.juris_search import Jurisprudencia
 
 class LaborLawyerAgent:
     def __init__(self):
@@ -20,7 +20,7 @@ class LaborLawyerAgent:
         else:
             clasificacion = "Consulta general"
 
-        # Buscar jurisprudencia relacionada (seguro porque ahora existe buscar_fallos)
+        # Buscar jurisprudencia relacionada
         fallos_relacionados = self.buscador.buscar_fallos(texto)
 
         # Construir respuesta narrativa premium
