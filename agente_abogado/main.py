@@ -11,7 +11,6 @@ from agente_abogado.routes import (
     analizar,
     feedback,
     memoria,
-    jurisprudenciab,
     chat
 )
 
@@ -39,5 +38,4 @@ app.include_router(health.router)
 app.include_router(analizar.router)
 app.include_router(feedback.router)
 app.include_router(memoria.router)
-app.include_router(jurisprudenciab.router)
 app.include_router(chat.router)
