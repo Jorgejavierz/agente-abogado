@@ -2,7 +2,6 @@
 
 from fastapi import APIRouter, Request
 from pydantic import BaseModel
-from agente_abogado.formatter import ResponseFormatter
 
 router = APIRouter(tags=["Analizar"])
 
@@ -15,10 +14,12 @@ class AnalizarInput(BaseModel):
     def contenido(self) -> str:
         return self.texto or self.text or ""
 
+
 @router.post("/analizar")
 async def analizar_documento(request: Request, entrada: AnalizarInput):
     """
     Endpoint para analizar contratos, conflictos o consultas laborales.
+    Devuelve un informe narrativo premium con explicación doctrinal.
     """
     agent = request.app.state.agent
     contenido = entrada.contenido.strip()
@@ -36,10 +37,38 @@ async def analizar_documento(request: Request, entrada: AnalizarInput):
     else:
         return {"error": f"Tipo de análisis no reconocido: {entrada.tipo}"}
 
-    # Formatear respuesta narrativa premium
-    texto_formateado = ResponseFormatter.formatear(resultado)
+    # Generar informe narrativo premium
+    informe = f"""
+    ⚖️ Informe Jurídico Automatizado
 
-    return {
-        "resultado": resultado,
-        "formateado": texto_formateado
-    }
+    1. Resumen ejecutivo:
+    {resultado['resumen']}
+
+    2. Explicación doctrinal:
+    {resultado['explicacion']}
+
+    3. Normativa aplicable:
+    - {resultado['normativa'][0]}
+    - {resultado['normativa'][1]}
+    - {resultado['normativa'][2]}
+
+    4. Jurisprudencia relevante:
+    {resultado['jurisprudencia']}
+
+    5. Fallos relacionados:
+    {len(resultado['fallos_relacionados'])} antecedentes encontrados.
+
+    6. Clasificación del caso:
+    {resultado['clasificacion']}
+
+    7. Riesgos legales:
+    {resultado['riesgos']}
+
+    8. Recomendaciones:
+    {resultado['recomendaciones']}
+
+    9. Conclusión:
+    {resultado['conclusion']}
+    """
+
+    return {"informe": informe.strip()}
