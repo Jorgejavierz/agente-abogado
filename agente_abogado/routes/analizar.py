@@ -19,7 +19,7 @@ class AnalizarInput(BaseModel):
 async def analizar_documento(request: Request, entrada: AnalizarInput):
     """
     Endpoint para analizar contratos, conflictos o consultas laborales.
-    Devuelve un informe narrativo premium con explicación doctrinal.
+    Devuelve un informe narrativo premium con explicación doctrinal, normativa y jurisprudencia.
     """
     agent = request.app.state.agent
     contenido = entrada.contenido.strip()
@@ -28,24 +28,28 @@ async def analizar_documento(request: Request, entrada: AnalizarInput):
         return {"error": "No se recibió texto para analizar."}
 
     tipo = entrada.tipo.lower()
-    if tipo == "contrato":
+
+    # Usamos responder_pregunta como fallback seguro
+    if tipo == "contrato" and hasattr(agent, "review_contract"):
         resultado = agent.review_contract(contenido)
-    elif tipo == "conflicto":
+    elif tipo == "conflicto" and hasattr(agent, "analizar_conflicto"):
         resultado = agent.analizar_conflicto(contenido)
-    elif tipo == "consulta":
-        resultado = agent.responder_pregunta(contenido)
     else:
-        return {"error": f"Tipo de análisis no reconocido: {entrada.tipo}"}
+        # Para "consulta" y cualquier otro caso, usamos responder_pregunta
+        resultado = agent.responder_pregunta(contenido)
+
+    # Asegurar que siempre exista el campo 'explicacion'
+    explicacion = resultado.get("explicacion", "No se encontró explicación doctrinal para este concepto.")
 
     # Generar informe narrativo premium
     informe = f"""
     ⚖️ Informe Jurídico Automatizado
 
     1. Resumen ejecutivo:
-    {resultado['resumen']}
+    {resultado.get('resumen', 'Sin resumen disponible.')}
 
     2. Explicación doctrinal:
-    {resultado['explicacion']}
+    {explicacion}
 
     3. Normativa aplicable:
     - {resultado['normativa'][0]}
@@ -53,22 +57,22 @@ async def analizar_documento(request: Request, entrada: AnalizarInput):
     - {resultado['normativa'][2]}
 
     4. Jurisprudencia relevante:
-    {resultado['jurisprudencia']}
+    {resultado.get('jurisprudencia', 'No se encontraron antecedentes.')}
 
     5. Fallos relacionados:
-    {len(resultado['fallos_relacionados'])} antecedentes encontrados.
+    {len(resultado.get('fallos_relacionados', []))} antecedentes encontrados.
 
     6. Clasificación del caso:
-    {resultado['clasificacion']}
+    {resultado.get('clasificacion', 'Sin clasificación.')}
 
     7. Riesgos legales:
-    {resultado['riesgos']}
+    {resultado.get('riesgos', 'No se identificaron riesgos.')}
 
     8. Recomendaciones:
-    {resultado['recomendaciones']}
+    {resultado.get('recomendaciones', 'No se generaron recomendaciones.')}
 
     9. Conclusión:
-    {resultado['conclusion']}
+    {resultado.get('conclusion', 'Sin conclusión disponible.')}
     """
 
     return {"informe": informe.strip()}
