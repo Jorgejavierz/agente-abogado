@@ -20,7 +20,7 @@ class LaborLawyerAgent:
         else:
             clasificacion = "Consulta general"
 
-        # Buscar jurisprudencia relacionada
+        # Buscar jurisprudencia relacionada (usa el método optimizado de juris_search.py)
         fallos_relacionados = self.buscador.buscar_fallos(texto)
 
         # Construir respuesta narrativa premium

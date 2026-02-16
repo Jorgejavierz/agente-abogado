@@ -5,7 +5,6 @@ from bs4 import BeautifulSoup
 from urllib.parse import urljoin
 from loguru import logger
 
-from sentence_transformers import SentenceTransformer
 import faiss
 import numpy as np
 
@@ -23,10 +22,20 @@ class Jurisprudencia:
         self.base_url = base_url or self.BASE_URL
         self.headers = {"User-Agent": "Mozilla/5.0"}
 
-        # Embeddings y FAISS
-        self.model = SentenceTransformer("all-MiniLM-L6-v2")
+        # Embeddings y FAISS (carga diferida)
+        self._model = None
         self.fallos = []
         self.index = None
+
+    # -------------------------------
+    # Carga diferida del modelo
+    # -------------------------------
+    def _get_model(self):
+        if self._model is None:
+            from sentence_transformers import SentenceTransformer
+            # Modelo más liviano para ahorrar memoria
+            self._model = SentenceTransformer("paraphrase-MiniLM-L3-v2")
+        return self._model
 
     # -------------------------------
     # Scraping mejorado
@@ -84,7 +93,8 @@ class Jurisprudencia:
     def agregar_fallo(self, titulo, texto, tema, tribunal, fecha, link=None):
         """Agrega un fallo con metadatos y lo indexa semánticamente."""
         enriched_text = f"Tema: {tema} | Tribunal: {tribunal} | Fecha: {fecha} | Texto: {texto}"
-        embedding = self.model.encode([enriched_text])[0]
+        model = self._get_model()
+        embedding = model.encode([enriched_text])[0]
         self.fallos.append({
             "titulo": titulo,
             "texto": texto,
@@ -121,8 +131,9 @@ class Jurisprudencia:
         if not self.index:
             return [{"mensaje": "No hay fallos indexados en la base local."}]
 
+        model = self._get_model()
         consulta_texto = f"Consulta: {consulta} | Tema: {tema if tema else 'general'}"
-        consulta_emb = self.model.encode([consulta_texto])[0].reshape(1, -1)
+        consulta_emb = model.encode([consulta_texto])[0].reshape(1, -1)
 
         distancias, indices = self.index.search(consulta_emb, top_k)
 
