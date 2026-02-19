@@ -19,7 +19,7 @@ class AnalizarInput(BaseModel):
 async def analizar_documento(request: Request, entrada: AnalizarInput):
     """
     Endpoint para analizar contratos, conflictos o consultas laborales.
-    Devuelve un informe narrativo premium con explicación doctrinal, normativa y jurisprudencia.
+    Devuelve un informe narrativo premium con explicación doctrinal, normativa, jurisprudencia y fuentes.
     """
     agent = request.app.state.agent
     contenido = entrada.contenido.strip()
@@ -35,11 +35,11 @@ async def analizar_documento(request: Request, entrada: AnalizarInput):
     elif tipo == "conflicto" and hasattr(agent, "analizar_conflicto"):
         resultado = agent.analizar_conflicto(contenido)
     else:
-        # Para "consulta" y cualquier otro caso, usamos responder_pregunta
         resultado = agent.responder_pregunta(contenido)
 
-    # Asegurar que siempre exista el campo 'explicacion'
+    # Asegurar que siempre exista el campo 'explicacion' y 'fuente'
     explicacion = resultado.get("explicacion", "No se encontró explicación doctrinal para este concepto.")
+    fuente = resultado.get("fuente", "Sin fuente disponible")
 
     # Generar informe narrativo premium
     informe = f"""
@@ -50,6 +50,7 @@ async def analizar_documento(request: Request, entrada: AnalizarInput):
 
     2. Explicación doctrinal:
     {explicacion}
+    Fuente: {fuente}
 
     3. Normativa aplicable:
     - {resultado['normativa'][0]}
