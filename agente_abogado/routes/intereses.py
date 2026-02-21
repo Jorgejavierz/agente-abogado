@@ -10,6 +10,7 @@ class InteresRequest(BaseModel):
     capital: float
     fecha_inicio: str
     fecha_fin: str
+    tipo_tasa: str = "TEA"   # 👈 nuevo campo con valor por defecto
 
 @router.post("/calcular-intereses")
 def calcular_intereses(req: InteresRequest):
@@ -17,7 +18,8 @@ def calcular_intereses(req: InteresRequest):
         resultado = calculadora.calcular(
             req.capital,
             req.fecha_inicio,
-            req.fecha_fin
+            req.fecha_fin,
+            req.tipo_tasa   # 👈 ahora se pasa al cálculo
         )
         return resultado
     except Exception as e:
