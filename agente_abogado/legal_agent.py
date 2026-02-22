@@ -6,7 +6,7 @@ class LaborLawyerAgent:
         self.buscador = Jurisprudencia()
 
     def normalizar(self, texto: str) -> str:
-        # Pasar a minúsculas y quitar acentos
+        """Normaliza texto: minúsculas y sin acentos."""
         texto = texto.lower()
         texto = ''.join(
             c for c in unicodedata.normalize('NFD', texto)
@@ -16,7 +16,7 @@ class LaborLawyerAgent:
 
     def explicar_concepto(self, texto: str) -> dict:
         """
-        Explica conceptos jurídicos laborales con estilo profesional y cita la fuente.
+        Explica conceptos jurídicos laborales con estilo profesional.
         Si no encuentra coincidencia interna, usa fallback con jurisprudencia.
         """
         t = self.normalizar(texto)
@@ -75,7 +75,7 @@ class LaborLawyerAgent:
 
     def responder_pregunta(self, texto: str) -> dict:
         """
-        Responde cualquier consulta laboral con un informe narrativo premium.
+        Responde cualquier consulta laboral con un informe narrativo estructurado.
         """
         # Clasificación básica
         if "contrato" in texto.lower():
@@ -88,28 +88,31 @@ class LaborLawyerAgent:
         # Buscar jurisprudencia
         fallos_relacionados = self.buscador.buscar_fallos(texto)
 
-        # Explicación doctrinal con fuente (interno + fallback)
+        # Explicación doctrinal con fuente
         doctrina = self.explicar_concepto(texto)
 
+        # Construcción del informe estructurado
         resultado = {
-            "resumen": f"Consulta recibida: {texto}",
-            "explicacion": doctrina["explicacion"],
-            "fuente": doctrina["fuente"],
-            "normativa": [
+            "consulta": texto,
+            "explicacion_doctrinal": doctrina["explicacion"],
+            "normativa_aplicable": [
                 "Ley de Contrato de Trabajo (Ley 20.744)",
                 "Convenios colectivos aplicables",
                 "Normas de seguridad laboral"
             ],
-            "jurisprudencia": (
-                "Se encontraron antecedentes relevantes en la base de jurisprudencia."
+            "jurisprudencia_relevante": (
+                f"Se encontraron {len(fallos_relacionados)} antecedentes relevantes."
                 if fallos_relacionados else
                 "No se encontraron antecedentes relevantes."
             ),
             "fallos_relacionados": fallos_relacionados,
             "clasificacion": clasificacion,
-            "riesgos": "El caso puede implicar riesgos legales según la normativa vigente.",
+            "riesgos_legales": "El caso puede implicar riesgos legales según la normativa vigente.",
             "recomendaciones": "Consultar con un abogado laboral para validar hallazgos y definir un curso de acción confiable.",
-            "conclusion": "Este informe es una aproximación automatizada. No reemplaza la revisión jurídica especializada."
+            "conclusion": (
+                "Este informe es una aproximación automatizada. No reemplaza la revisión jurídica especializada."
+            ),
+            "fuente": doctrina["fuente"]
         }
 
         return resultado

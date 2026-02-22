@@ -37,28 +37,24 @@ async def analizar_documento(request: Request, entrada: AnalizarInput):
     else:
         resultado = agent.responder_pregunta(contenido)
 
-    # Asegurar que siempre exista el campo 'explicacion' y 'fuente'
-    explicacion = resultado.get("explicacion", "No se encontró explicación doctrinal para este concepto.")
-    fuente = resultado.get("fuente", "Sin fuente disponible")
-
-    # Generar informe narrativo premium
+    # Generar informe narrativo premium con los nuevos nombres de campo
     informe = f"""
     ⚖️ Informe Jurídico Automatizado
 
-    1. Resumen ejecutivo:
-    {resultado.get('resumen', 'Sin resumen disponible.')}
+    1. Consulta recibida:
+    {resultado.get('consulta', 'Sin consulta disponible.')}
 
     2. Explicación doctrinal:
-    {explicacion}
-    Fuente: {fuente}
+    {resultado.get('explicacion_doctrinal', 'No se encontró explicación doctrinal.')}
+    Fuente: {resultado.get('fuente', 'Sin fuente disponible')}
 
     3. Normativa aplicable:
-    - {resultado['normativa'][0]}
-    - {resultado['normativa'][1]}
-    - {resultado['normativa'][2]}
+    - {resultado['normativa_aplicable'][0]}
+    - {resultado['normativa_aplicable'][1]}
+    - {resultado['normativa_aplicable'][2]}
 
     4. Jurisprudencia relevante:
-    {resultado.get('jurisprudencia', 'No se encontraron antecedentes.')}
+    {resultado.get('jurisprudencia_relevante', 'No se encontraron antecedentes.')}
 
     5. Fallos relacionados:
     {len(resultado.get('fallos_relacionados', []))} antecedentes encontrados.
@@ -67,7 +63,7 @@ async def analizar_documento(request: Request, entrada: AnalizarInput):
     {resultado.get('clasificacion', 'Sin clasificación.')}
 
     7. Riesgos legales:
-    {resultado.get('riesgos', 'No se identificaron riesgos.')}
+    {resultado.get('riesgos_legales', 'No se identificaron riesgos.')}
 
     8. Recomendaciones:
     {resultado.get('recomendaciones', 'No se generaron recomendaciones.')}
