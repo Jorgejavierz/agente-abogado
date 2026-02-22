@@ -1,5 +1,8 @@
 import unicodedata
+import requests
 from agente_abogado.juris_search import Jurisprudencia
+
+FAISS_SERVER = "http://127.0.0.1:8081"  # Servidor FAISS local
 
 class LaborLawyerAgent:
     def __init__(self):
@@ -14,10 +17,27 @@ class LaborLawyerAgent:
         )
         return texto
 
+    def guardar_en_faiss(self, texto: str, respuesta: str):
+        """Guarda consulta y respuesta en FAISS."""
+        payload = {"texto": texto, "respuesta": respuesta}
+        try:
+            requests.post(f"{FAISS_SERVER}/guardar", json=payload)
+        except Exception as e:
+            print(f"Error al guardar en FAISS: {e}")
+
+    def buscar_en_faiss(self, texto: str, k: int = 3):
+        """Busca antecedentes similares en FAISS."""
+        try:
+            resp = requests.get(f"{FAISS_SERVER}/buscar", params={"texto": texto, "k": k})
+            return resp.json().get("resultados", [])
+        except Exception as e:
+            print(f"Error al buscar en FAISS: {e}")
+            return []
+
     def explicar_concepto(self, texto: str) -> dict:
         """
         Explica conceptos jurídicos laborales con estilo profesional.
-        Si no encuentra coincidencia interna, usa fallback con jurisprudencia.
+        Si no encuentra coincidencia interna, usa fallback con jurisprudencia o FAISS.
         """
         t = self.normalizar(texto)
 
@@ -68,6 +88,14 @@ class LaborLawyerAgent:
                 "fuente": f"Fuente: {fuente}"
             }
 
+        # Fallback: búsqueda en FAISS
+        antecedentes = self.buscar_en_faiss(texto)
+        if antecedentes:
+            return {
+                "explicacion": f"No se encontró definición interna, pero FAISS devolvió {len(antecedentes)} antecedentes similares.",
+                "fuente": "Base FAISS local"
+            }
+
         return {
             "explicacion": "No se encontró una explicación doctrinal específica para este concepto.",
             "fuente": "Sin fuente disponible"
@@ -114,5 +142,8 @@ class LaborLawyerAgent:
             ),
             "fuente": doctrina["fuente"]
         }
+
+        # Guardar en FAISS para aprendizaje continuo
+        self.guardar_en_faiss(texto, resultado["explicacion_doctrinal"])
 
         return resultado
