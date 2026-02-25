@@ -4,6 +4,7 @@ from agente_abogado.juris_search import Jurisprudencia
 
 FAISS_SERVER = "http://127.0.0.1:8081"  # Servidor FAISS local
 
+
 class LaborLawyerAgent:
     def __init__(self):
         self.buscador = Jurisprudencia()
