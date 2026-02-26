@@ -15,6 +15,8 @@ from agente_abogado.routes import (
 
 import requests
 from PyPDF2 import PdfReader
+import os
+import uvicorn
 
 # Dirección del servidor FAISS (ajustar si lo desplegás en otro host/puerto)
 FAISS_SERVER = "http://127.0.0.1:8081"
@@ -85,3 +87,8 @@ async def consultar_documento(pregunta: str, k: int = 3):
         }
     else:
         return {"error": "No se pudo consultar FAISS", "detalle": resp.text}
+
+# Bloque para ejecución local y en Render
+if __name__ == "__main__":
+    port = int(os.environ.get("PORT", 8000))  # Render asigna el puerto
+    uvicorn.run("agente_abogado.main:app", host="0.0.0.0", port=port)
