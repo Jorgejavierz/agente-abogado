@@ -33,7 +33,10 @@ app = FastAPI(
 # Configuración de CORS
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=ALLOWED_ORIGINS,   # dominios permitidos (ej. Vercel, localhost)
+    allow_origins=[
+        "https://agente-laboral-frontend.vercel.app",  # tu frontend en Vercel
+        "http://localhost:5173"                        # para pruebas locales
+    ],
     allow_credentials=True,
     allow_methods=["*"],             # permitir todos los métodos
     allow_headers=["*"],             # permitir todos los headers
@@ -53,7 +56,6 @@ app.include_router(intereses.router)  # 👈 integración del nuevo endpoint
 # Endpoint para subir documentos y cargarlos en FAISS
 @app.post("/upload_document")
 async def upload_document(file: UploadFile = File(...)):
-    # Guardar temporalmente el PDF subido
     pdf_path = f"temp_{file.filename}"
     with open(pdf_path, "wb") as f:
         f.write(await file.read())
@@ -90,19 +92,16 @@ async def upload_document(file: UploadFile = File(...)):
         return {"mensaje": "Documento cargado correctamente", "fragmentos": len(fragmentos)}
 
     finally:
-        # Borrar archivo temporal
         if os.path.exists(pdf_path):
             os.remove(pdf_path)
 
 # Endpoint para consultar documentos cargados en FAISS y responder con el agente
 @app.get("/consultar_documento")
 async def consultar_documento(pregunta: str, k: int = 3):
-    # Consultar FAISS para obtener fragmentos relevantes
     resp = requests.get(f"{FAISS_SERVER}/buscar", params={"texto": pregunta, "k": k})
     
     if resp.status_code == 200:
         resultados = resp.json().get("resultados", [])
-        # Pasar la pregunta al agente laboral para generar un informe narrativo
         informe = app.state.agent.responder_pregunta(pregunta)
         return {
             "pregunta": pregunta,
