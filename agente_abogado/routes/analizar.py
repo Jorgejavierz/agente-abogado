@@ -3,6 +3,12 @@
 from fastapi import APIRouter, Request, UploadFile, File
 from pydantic import BaseModel
 from PyPDF2 import PdfReader
+from pdf2image import convert_from_bytes
+import pytesseract
+
+# Configuración de Tesseract en Windows
+# Ajustá la ruta si instalaste Tesseract en otro directorio
+pytesseract.pytesseract.tesseract_cmd = r"C:\Program Files\Tesseract-OCR\tesseract.exe"
 
 router = APIRouter(tags=["Analizar"])
 
@@ -23,17 +29,32 @@ async def analizar_documento(
     file: UploadFile = File(None)
 ):
     """
-    Endpoint para analizar contratos, conflictos o consultas laborales.
+    Endpoint premium para analizar contratos, conflictos o consultas laborales.
     Puede recibir texto en JSON o un archivo PDF.
-    Devuelve un informe narrativo premium con explicación doctrinal, normativa, jurisprudencia y fuentes.
+    Si el PDF no tiene texto embebido, aplica OCR para extraerlo.
+    Devuelve un informe narrativo con explicación doctrinal, normativa, jurisprudencia y fuentes.
     """
     agent = request.app.state.agent
+    contenido = ""
 
     # Caso 1: si se sube un archivo PDF
-    contenido = ""
     if file:
+        # Intentar extraer texto con PyPDF2
         reader = PdfReader(file.file)
         contenido = "".join([page.extract_text() or "" for page in reader.pages]).strip()
+
+        # Si no se pudo extraer texto, aplicar OCR
+        if not contenido:
+            file.file.seek(0)  # volver al inicio del archivo
+            pdf_bytes = file.file.read()
+            paginas = convert_from_bytes(pdf_bytes)
+            contenido = ""
+            for pagina in paginas:
+                contenido += pytesseract.image_to_string(pagina, lang="spa") + "\n"
+            contenido = contenido.strip()
+
+        if not contenido:
+            return {"error": "No se pudo extraer texto del archivo, ni siquiera con OCR."}
 
     # Caso 2: si se envía texto en JSON
     elif entrada:
@@ -52,7 +73,7 @@ async def analizar_documento(
     else:
         resultado = agent.responder_pregunta(contenido)
 
-    # Generar informe narrativo premium con los nuevos nombres de campo
+    # Generar informe narrativo premium
     informe = f"""
     ⚖️ Informe Jurídico Automatizado
 

@@ -15,6 +15,8 @@ from agente_abogado.routes import (
 
 import requests
 from PyPDF2 import PdfReader
+from pdf2image import convert_from_path
+import pytesseract
 import os
 import uvicorn
 
@@ -51,24 +53,46 @@ app.include_router(intereses.router)  # 👈 integración del nuevo endpoint
 # Endpoint para subir documentos y cargarlos en FAISS
 @app.post("/upload_document")
 async def upload_document(file: UploadFile = File(...)):
-    reader = PdfReader(file.file)
+    # Guardar temporalmente el PDF subido
+    pdf_path = f"temp_{file.filename}"
+    with open(pdf_path, "wb") as f:
+        f.write(await file.read())
+
     texto_total = ""
-    for page in reader.pages:
-        texto_total += page.extract_text() + "\n"
 
-    # Dividir en fragmentos
-    palabras = texto_total.split()
-    fragmentos = [
-        " ".join(palabras[i:i+400])
-        for i in range(0, len(palabras), 400)
-    ]
+    try:
+        # 1. Intentar extraer texto digital con PyPDF2
+        reader = PdfReader(pdf_path)
+        for page in reader.pages:
+            text = page.extract_text()
+            if text:
+                texto_total += text + "\n"
 
-    # Guardar en FAISS
-    for idx, frag in enumerate(fragmentos):
-        payload = {"texto": frag, "respuesta": f"Fragmento {idx+1}"}
-        requests.post(f"{FAISS_SERVER}/guardar", json=payload)
+        # 2. Si no hay texto, usar OCR con Poppler + Tesseract
+        if not texto_total.strip():
+            pages = convert_from_path(pdf_path)
+            for page in pages:
+                text = pytesseract.image_to_string(page, lang="spa")
+                texto_total += text + "\n"
 
-    return {"mensaje": "Documento cargado correctamente", "fragmentos": len(fragmentos)}
+        # Dividir en fragmentos
+        palabras = texto_total.split()
+        fragmentos = [
+            " ".join(palabras[i:i+400])
+            for i in range(0, len(palabras), 400)
+        ]
+
+        # Guardar en FAISS
+        for idx, frag in enumerate(fragmentos):
+            payload = {"texto": frag, "respuesta": f"Fragmento {idx+1}"}
+            requests.post(f"{FAISS_SERVER}/guardar", json=payload)
+
+        return {"mensaje": "Documento cargado correctamente", "fragmentos": len(fragmentos)}
+
+    finally:
+        # Borrar archivo temporal
+        if os.path.exists(pdf_path):
+            os.remove(pdf_path)
 
 # Endpoint para consultar documentos cargados en FAISS y responder con el agente
 @app.get("/consultar_documento")
@@ -77,7 +101,7 @@ async def consultar_documento(pregunta: str, k: int = 3):
     resp = requests.get(f"{FAISS_SERVER}/buscar", params={"texto": pregunta, "k": k})
     
     if resp.status_code == 200:
-        resultados = resp.json()["resultados"]
+        resultados = resp.json().get("resultados", [])
         # Pasar la pregunta al agente laboral para generar un informe narrativo
         informe = app.state.agent.responder_pregunta(pregunta)
         return {

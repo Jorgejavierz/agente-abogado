@@ -4,7 +4,6 @@ from agente_abogado.juris_search import Jurisprudencia
 
 FAISS_SERVER = "http://127.0.0.1:8081"  # Servidor FAISS local
 
-
 class LaborLawyerAgent:
     def __init__(self):
         self.buscador = Jurisprudencia()
@@ -37,74 +36,37 @@ class LaborLawyerAgent:
 
     def explicar_concepto(self, texto: str) -> dict:
         """
-        Explica conceptos jurídicos laborales con estilo profesional.
-        Si no encuentra coincidencia interna, usa fallback con jurisprudencia o FAISS.
+        Explica conceptos jurídicos laborales con respaldo documental.
+        Nunca inventa jurisprudencia ni artículos: si no hay fuente, lo indica.
         """
-        t = self.normalizar(texto)
-
-        doctrinas = {
-            "despido sin causa": {
-                "explicacion": (
-                    "El despido sin causa es la decisión unilateral del empleador de extinguir "
-                    "la relación laboral sin invocar una razón justificada. Conforme al artículo 245 "
-                    "de la Ley de Contrato de Trabajo, este tipo de despido obliga al empleador a "
-                    "pagar una indemnización equivalente a un mes de sueldo por cada año de servicio "
-                    "o fracción mayor a tres meses."
-                ),
-                "fuente": "Ley 20.744, art. 245"
-            },
-            "principio de irrenunciabilidad": {
-                "explicacion": (
-                    "El principio de irrenunciabilidad de derechos laborales establece que el trabajador "
-                    "no puede renunciar válidamente a los derechos reconocidos por la ley, convenios colectivos "
-                    "o contratos. Este principio, consagrado en el artículo 12 de la Ley de Contrato de Trabajo, "
-                    "garantiza la tutela mínima indisponible y protege al trabajador frente a acuerdos que "
-                    "pretendan disminuir sus derechos."
-                ),
-                "fuente": "Ley 20.744, art. 12"
-            },
-            "fraude laboral": {
-                "explicacion": (
-                    "El fraude laboral se configura cuando el empleador utiliza mecanismos aparentes o simulados "
-                    "para encubrir una verdadera relación laboral, con el fin de evitar el cumplimiento de las "
-                    "obligaciones legales. La jurisprudencia ha sido clara en sancionar estas prácticas, "
-                    "reconociendo la primacía de la realidad sobre las formas."
-                ),
-                "fuente": "CNAT, Sala VII, 'Pérez c/ Empresa Y', 2020"
+        # Buscar en FAISS primero
+        antecedentes = self.buscar_en_faiss(texto)
+        if antecedentes:
+            return {
+                "explicacion": f"FAISS devolvió {len(antecedentes)} antecedentes relevantes.",
+                "fuente": "Base FAISS local"
             }
-        }
 
-        # Buscar coincidencia interna
-        for clave, valor in doctrinas.items():
-            if clave in t:
-                return valor
-
-        # Fallback: búsqueda externa en jurisprudencia
+        # Buscar en jurisprudencia externa
         fallos = self.buscador.buscar_fallos(texto)
         if fallos:
             primer_fallo = fallos[0]
             fuente = f"{primer_fallo.get('tribunal', 'Tribunal desconocido')} - {primer_fallo.get('anio', 'Año no disponible')}"
             return {
-                "explicacion": f"No se encontró definición interna, pero se hallaron {len(fallos)} antecedentes jurisprudenciales.",
-                "fuente": f"Fuente: {fuente}"
+                "explicacion": f"Se hallaron {len(fallos)} antecedentes jurisprudenciales.",
+                "fuente": fuente
             }
 
-        # Fallback: búsqueda en FAISS
-        antecedentes = self.buscar_en_faiss(texto)
-        if antecedentes:
-            return {
-                "explicacion": f"No se encontró definición interna, pero FAISS devolvió {len(antecedentes)} antecedentes similares.",
-                "fuente": "Base FAISS local"
-            }
-
+        # Si no hay nada, no inventar
         return {
-            "explicacion": "No se encontró una explicación doctrinal específica para este concepto.",
+            "explicacion": "No se encontró explicación ni antecedentes documentales para este concepto.",
             "fuente": "Sin fuente disponible"
         }
 
     def responder_pregunta(self, texto: str) -> dict:
         """
-        Responde cualquier consulta laboral con un informe narrativo estructurado.
+        Responde cualquier consulta laboral con respaldo documental.
+        Nunca inventa: si no hay datos, lo indica claramente.
         """
         # Clasificación básica
         if "contrato" in texto.lower():
@@ -120,15 +82,9 @@ class LaborLawyerAgent:
         # Explicación doctrinal con fuente
         doctrina = self.explicar_concepto(texto)
 
-        # Construcción del informe estructurado
         resultado = {
             "consulta": texto,
             "explicacion_doctrinal": doctrina["explicacion"],
-            "normativa_aplicable": [
-                "Ley de Contrato de Trabajo (Ley 20.744)",
-                "Convenios colectivos aplicables",
-                "Normas de seguridad laboral"
-            ],
             "jurisprudencia_relevante": (
                 f"Se encontraron {len(fallos_relacionados)} antecedentes relevantes."
                 if fallos_relacionados else
@@ -136,11 +92,7 @@ class LaborLawyerAgent:
             ),
             "fallos_relacionados": fallos_relacionados,
             "clasificacion": clasificacion,
-            "riesgos_legales": "El caso puede implicar riesgos legales según la normativa vigente.",
-            "recomendaciones": "Consultar con un abogado laboral para validar hallazgos y definir un curso de acción confiable.",
-            "conclusion": (
-                "Este informe es una aproximación automatizada. No reemplaza la revisión jurídica especializada."
-            ),
+            "conclusion": "Este informe es una aproximación automatizada. No reemplaza la revisión jurídica especializada.",
             "fuente": doctrina["fuente"]
         }
 
