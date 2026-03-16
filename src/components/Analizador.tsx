@@ -156,7 +156,6 @@ export default function Analizador() {
     doc.setFont("times", "normal");
     doc.setFontSize(12);
 
-    // Si informe es objeto, convertirlo a string
     const contenido =
       typeof resultado.informe === "string"
         ? resultado.informe
@@ -198,7 +197,6 @@ export default function Analizador() {
       </h1>
       <p style={{ color: "#ddd" }}>Subí o arrastrá el archivo aquí.</p>
 
-      {/* FORM para que Enter ejecute analizarTextoPegado */}
       <form
         onSubmit={(e) => {
           e.preventDefault();
