@@ -257,7 +257,6 @@ export default function Analizador() {
           padding: 24,
           textAlign: "center",
           color: "#ccc",
-         
           marginBottom: 12,
           backgroundColor: "rgba(28,28,28,0.6)",
         }}
