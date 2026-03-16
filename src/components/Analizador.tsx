@@ -1,6 +1,6 @@
 import { useState } from "react";
 import jsPDF from "jspdf";
-import { FaBalanceScale } from "react-icons/fa"; // Ícono profesional
+import { FaBalanceScale } from "react-icons/fa";
 
 const API_BASE = "https://agente-abogado.onrender.com";
 const MAX_FILE_SIZE_MB = 10;
@@ -54,7 +54,6 @@ export default function Analizador() {
   const [error, setError] = useState<string | null>(null);
   const [feedbackEnviado, setFeedbackEnviado] = useState(false);
 
-  // 🔹 Subir archivo al backend
   const enviarArchivoAlBackend = async (file: File) => {
     if (cargando) return;
     setCargando(true);
@@ -106,7 +105,6 @@ export default function Analizador() {
     enviarArchivoAlBackend(file);
   };
 
-  // 🔹 Consultar texto pegado
   const analizarTextoPegado = async () => {
     if (cargando) return;
     setCargando(true);
@@ -131,7 +129,6 @@ export default function Analizador() {
     }
   };
 
-  // 🔹 Feedback
   const enviarFeedback = async (util: boolean) => {
     try {
       await fetch(`${API_BASE}/feedback`, {
@@ -149,7 +146,6 @@ export default function Analizador() {
     }
   };
 
-  // 🔹 Descargar informe en PDF
   const descargarPDF = () => {
     if (!resultado?.informe) return;
     const doc = new jsPDF();
@@ -166,141 +162,60 @@ export default function Analizador() {
   };
 
   return (
-    <div
-      style={{
-        maxWidth: 800,
-        margin: "0 auto",
-        padding: 24,
-        backgroundImage: "url('/close-up-law-scale.jpg')",
-        backgroundSize: "cover",
-        backgroundPosition: "center",
-        backgroundRepeat: "no-repeat",
-        backgroundAttachment: "fixed",
-        borderRadius: 12,
-        boxShadow: "0 4px 12px rgba(0,0,0,0.5)",
-        color: "#f5f5f5",
-        fontFamily: "Georgia, serif",
-        backdropFilter: "brightness(0.6)",
-      }}
-    >
-      <h1
-        style={{
-          fontWeight: 700,
-          fontSize: 24,
-          display: "flex",
-          alignItems: "center",
-          gap: "10px",
-          color: "#f5f5f5",
-        }}
-      >
+    <div style={{ maxWidth: 800, margin: "0 auto", padding: 24 }}>
+      <h1 style={{ fontWeight: 700, fontSize: 24, display: "flex", alignItems: "center", gap: "10px" }}>
         <FaBalanceScale /> Agente Abogado Laboral
       </h1>
-      <p style={{ color: "#ddd" }}>Subí o arrastrá el archivo aquí.</p>
 
       <form
         onSubmit={(e) => {
           e.preventDefault();
           analizarTextoPegado();
         }}
-        style={{ width: "100%" }}
       >
         <textarea
           value={texto}
           onChange={(e) => setTexto(e.target.value)}
           placeholder="Pegá aquí el contrato o conflicto..."
           rows={10}
-          style={{
-            width: "100%",
-            padding: 12,
-            border: "1px solid #444",
-            borderRadius: 8,
-            marginBottom: 12,
-            backgroundColor: "rgba(28,28,28,0.8)",
-            color: "#f5f5f5",
-          }}
+          style={{ width: "100%", marginBottom: 12 }}
         />
-
-        <div style={{ display: "flex", gap: 12, marginTop: 12 }}>
-          <button
-            type="submit"
-            disabled={cargando || !texto}
-            style={{
-              backgroundColor: cargando ? "#888" : "#007BFF",
-              color: "white",
-              padding: "10px 20px",
-              border: "none",
-              borderRadius: "8px",
-              cursor: cargando ? "not-allowed" : "pointer",
-              fontWeight: 600,
-              boxShadow: "0 2px 6px rgba(0,0,0,0.4)",
-              transition: "background-color 0.3s ease",
-            }}
-          >
-            {cargando ? "Analizando…" : "Analizar texto pegado"}
-          </button>
-        </div>
+        <button type="submit" disabled={cargando || !texto}>
+          {cargando ? "Analizando…" : "Analizar texto pegado"}
+        </button>
       </form>
 
-      <input
-        type="file"
-        accept=".txt,.pdf,.docx"
-        onChange={manejarArchivo}
-        style={{ marginBottom: 12, color: "#f5f5f5" }}
-      />
+      <input type="file" accept=".txt,.pdf,.docx" onChange={manejarArchivo} />
 
-      <div
-        onDrop={manejarDrop}
-        onDragOver={(e) => e.preventDefault()}
-        style={{
-          border: "2px dashed #666",
-          borderRadius: 8,
-          padding: 24,
-          textAlign: "center",
-          color: "#ccc",
-          marginBottom: 12,
-          backgroundColor: "rgba(28,28,28,0.6)",
-        }}
-      >
-        Arrastrá tu archivo aquí (máx {MAX_FILE_SIZE_MB} MB)
-      </div>
+      {error && <p style={{ color: "crimson" }}>{error}</p>}
 
-      {error && <p style={{ marginTop: 12, color: "crimson" }}>{error}</p>}
-
+      {/* Mostrar informe si existe */}
       {resultado?.informe && (
-  <div
-    style={{
-      marginTop: 16,
-      padding: 16,
-      border: "1px solid #444",
-      borderRadius: 8,
-      background: "rgba(28,28,28,0.8)",
-      whiteSpace: "pre-wrap",
-      fontFamily: "Georgia, serif",
-      lineHeight: 1.6,
-      color: "#f5f5f5",
-    }}
-  >
-    <h2 style={{ fontWeight: 700, fontSize: 18 }}>Informe narrativo</h2>
-    
-    {/* Aquí usamos el componente Informe */}
-    <Informe informe={resultado.informe} />
+        <div style={{ marginTop: 16 }}>
+          <h2>Informe narrativo</h2>
+          <Informe informe={resultado.informe} />
+          <button onClick={descargarPDF}>📄 Descargar PDF</button>
+          {!feedbackEnviado ? (
+            <div>
+              <button onClick={() => enviarFeedback(true)}>👍 Útil</button>
+              <button onClick={() => enviarFeedback(false)}>👎 No útil</button>
+            </div>
+          ) : (
+            <p>¡Gracias por tu feedback!</p>
+          )}
+        </div>
+      )}
 
-    <div style={{ display: "flex", gap: 8, marginTop: 12 }}>
-      <button onClick={descargarPDF}>📄 Descargar PDF</button>
-    </div>
-
-    {!feedbackEnviado ? (
-      <div style={{ display: "flex", gap: 8, marginTop: 12 }}>
-        <button onClick={() => enviarFeedback(true)}>👍 Útil</button>
-        <button onClick={() => enviarFeedback(false)}>👎 No útil</button>
-      </div>
-    ) : (
-      <p style={{ marginTop: 12, color: "lightgreen" }}>
-        ¡Gracias por tu feedback!
-      </p>
-    )}
-  </div>
-)}
+      {/* Mostrar mensaje/origen si existen */}
+      {resultado && !resultado.informe && (
+        <div style={{ marginTop: 16 }}>
+          {typeof resultado.mensaje === "string" && <p><strong>Mensaje:</strong> {resultado.mensaje}</p>}
+          {typeof resultado.origen === "string" && <p><strong>Origen:</strong> {resultado.origen}</p>}
+          {!resultado.mensaje && !resultado.origen && (
+            <pre>{JSON.stringify(resultado, null, 2)}</pre>
+          )}
+        </div>
+      )}
     </div>
   );
 }
