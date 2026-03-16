@@ -130,7 +130,7 @@ async def upload_document(file: UploadFile = File(...)):
 @app.get("/consultar_documento")
 async def consultar_documento(pregunta: str, k: int = 3):
     try:
-        # Llamada a FAISS con timeout y manejo de errores
+        # Intentar llamar a FAISS
         try:
             resp = requests.get(
                 f"{FAISS_SERVER}/buscar",
@@ -140,12 +140,12 @@ async def consultar_documento(pregunta: str, k: int = 3):
             resp.raise_for_status()
             resultados = resp.json().get("resultados", [])
         except Exception as e_faiss:
-            logger.exception("Error consultando FAISS.")
-            # No abortamos: devolvemos un arreglo vacío de fragmentos y seguimos
+            logger.warning("FAISS no disponible, devolviendo resultados vacíos.")
             resultados = []
-            # opcional: incluir detalle en logs, pero no exponer todo al cliente
+            # opcional: incluir detalle para depuración
             faiss_error = str(e_faiss)
-        # Usar el agente para generar informe (manejar si el agente falla)
+
+        # Usar el agente para generar informe
         try:
             informe = app.state.agent.responder_pregunta(pregunta)
         except Exception:
@@ -157,22 +157,18 @@ async def consultar_documento(pregunta: str, k: int = 3):
             "informe": informe,
             "fragmentos": resultados
         }
-        # Si hubo error con FAISS, añadir detalle mínimo
         if 'faiss_error' in locals():
-            response_payload["faiss_error"] = "No se pudo conectar con FAISS en producción."
+            response_payload["faiss_error"] = "FAISS no disponible en producción."
 
         return response_payload
 
     except Exception as e:
-        # Capturar cualquier excepción inesperada, loguearla y devolver 500 controlado
         logger.exception("Error interno en /consultar_documento")
-        traceback.print_exc()
         return Response(
             content=json.dumps({"error": "Error interno", "detalle": str(e)}),
             media_type="application/json",
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR
         )
-
 # Bloque para ejecución local y en Render
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 8000))
