@@ -5,6 +5,48 @@ import { FaBalanceScale } from "react-icons/fa"; // Ícono profesional
 const API_BASE = "https://agente-abogado.onrender.com";
 const MAX_FILE_SIZE_MB = 10;
 
+// 🔹 Componente para mostrar el informe
+function Informe({ informe }: { informe: any }) {
+  if (!informe) return null;
+
+  if (typeof informe === "string") {
+    return <div>{informe}</div>;
+  }
+
+  return (
+    <div>
+      <h3>{informe.consulta || "Consulta"}</h3>
+
+      <section>
+        <h4>Explicación doctrinal</h4>
+        <p>{informe.explicacion_doctrinal || "Sin contenido"}</p>
+      </section>
+
+      <section>
+        <h4>Jurisprudencia relevante</h4>
+        <ul>
+          {Array.isArray(informe.jurisprudencia_relevante) && informe.jurisprudencia_relevante.length > 0
+            ? informe.jurisprudencia_relevante.map((item: string, idx: number) => <li key={idx}>{item}</li>)
+            : <li>No hay jurisprudencia</li>}
+        </ul>
+      </section>
+
+      <section>
+        <h4>Fallos relacionados</h4>
+        <ul>
+          {Array.isArray(informe.fallos_relacionados) && informe.fallos_relacionados.length > 0
+            ? informe.fallos_relacionados.map((item: string, idx: number) => <li key={idx}>{item}</li>)
+            : <li>No hay fallos relacionados</li>}
+        </ul>
+      </section>
+
+      <p><strong>Clasificación:</strong> {informe.clasificacion || "—"}</p>
+      <p><strong>Conclusión:</strong> {informe.conclusion || "—"}</p>
+      <p><em>Fuente:</em> {informe.fuente || "—"}</p>
+    </div>
+  );
+}
+
 export default function Analizador() {
   const [texto, setTexto] = useState("");
   const [resultado, setResultado] = useState<any>(null);
@@ -113,7 +155,14 @@ export default function Analizador() {
     const doc = new jsPDF();
     doc.setFont("times", "normal");
     doc.setFontSize(12);
-    doc.text(resultado.informe, 10, 10, { maxWidth: 190 });
+
+    // Si informe es objeto, convertirlo a string
+    const contenido =
+      typeof resultado.informe === "string"
+        ? resultado.informe
+        : JSON.stringify(resultado.informe, null, 2);
+
+    doc.text(contenido, 10, 10, { maxWidth: 190 });
     doc.save("informe_agente_abogado.pdf");
   };
 
@@ -214,44 +263,46 @@ export default function Analizador() {
           backgroundColor: "rgba(28,28,28,0.6)",
         }}
       >
-        Arrastrá tu archivo aquí (máx. {MAX_FILE_SIZE_MB} MB)
+        Arrastrá tu archivo aquí (máx {MAX_FILE_SIZE_MB} MB)
       </div>
 
       {error && <p style={{ marginTop: 12, color: "crimson" }}>{error}</p>}
 
       {resultado?.informe && (
-        <div
-          style={{
-            marginTop: 16,
-            padding: 16,
-            border: "1px solid #444",
-            borderRadius: 8,
-            background: "rgba(28,28,28,0.8)",
-            whiteSpace: "pre-wrap",
-            fontFamily: "Georgia, serif",
-            lineHeight: 1.6,
-            color: "#f5f5f5",
-          }}
-        >
-          <h2 style={{ fontWeight: 700, fontSize: 18 }}>Informe narrativo</h2>
-          {resultado.informe}
+  <div
+    style={{
+      marginTop: 16,
+      padding: 16,
+      border: "1px solid #444",
+      borderRadius: 8,
+      background: "rgba(28,28,28,0.8)",
+      whiteSpace: "pre-wrap",
+      fontFamily: "Georgia, serif",
+      lineHeight: 1.6,
+      color: "#f5f5f5",
+    }}
+  >
+    <h2 style={{ fontWeight: 700, fontSize: 18 }}>Informe narrativo</h2>
+    
+    {/* Aquí usamos el componente Informe */}
+    <Informe informe={resultado.informe} />
 
-          <div style={{ display: "flex", gap: 8, marginTop: 12 }}>
-            <button onClick={descargarPDF}>📄 Descargar PDF</button>
-          </div>
+    <div style={{ display: "flex", gap: 8, marginTop: 12 }}>
+      <button onClick={descargarPDF}>📄 Descargar PDF</button>
+    </div>
 
-          {!feedbackEnviado ? (
-            <div style={{ display: "flex", gap: 8, marginTop: 12 }}>
-              <button onClick={() => enviarFeedback(true)}>👍 Útil</button>
-              <button onClick={() => enviarFeedback(false)}>👎 No útil</button>
-            </div>
-          ) : (
-            <p style={{ marginTop: 12, color: "lightgreen" }}>
-              ¡Gracias por tu feedback!
-            </p>
-          )}
-        </div>
-      )}
+    {!feedbackEnviado ? (
+      <div style={{ display: "flex", gap: 8, marginTop: 12 }}>
+        <button onClick={() => enviarFeedback(true)}>👍 Útil</button>
+        <button onClick={() => enviarFeedback(false)}>👎 No útil</button>
+      </div>
+    ) : (
+      <p style={{ marginTop: 12, color: "lightgreen" }}>
+        ¡Gracias por tu feedback!
+      </p>
+    )}
+  </div>
+)}
     </div>
   );
 }
