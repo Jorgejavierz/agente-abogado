@@ -187,6 +187,22 @@ export default function Analizador() {
 
       <input type="file" accept=".txt,.pdf,.docx" onChange={manejarArchivo} />
 
+      {/* Bloque drag & drop */}
+      <div
+        onDrop={manejarDrop}
+        onDragOver={(e) => e.preventDefault()}
+        style={{
+          border: "2px dashed #666",
+          borderRadius: 8,
+          padding: 24,
+          textAlign: "center",
+          color: "#555",
+          marginTop: 12,
+        }}
+      >
+        Arrastrá tu archivo aquí (máx {MAX_FILE_SIZE_MB} MB)
+      </div>
+
       {error && <p style={{ color: "crimson" }}>{error}</p>}
 
       {/* Mostrar informe si existe */}
