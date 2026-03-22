@@ -2,13 +2,12 @@
 import React, { useEffect, useState } from "react";
 
 const API_BASE = "https://agente-abogado.onrender.com"; 
-// ⚠️ Este es tu backend en Render. Si cambia el nombre del servicio, actualizalo acá.
 
 interface MemoriaItem {
   id: number;
   tipo: string;
   texto: string;
-  resultado: string;
+  resultado: string | object; // puede venir como string o como objeto
   timestamp: string;
 }
 
@@ -28,7 +27,7 @@ const Historial: React.FC = () => {
         if (data.memoria && Array.isArray(data.memoria)) {
           setMemoria(data.memoria);
         }
-      } catch (e) {
+      } catch {
         setError("Error cargando historial.");
       } finally {
         setCargando(false);
@@ -82,18 +81,15 @@ const Historial: React.FC = () => {
             background: "#fafafa",
           }}
         >
+          <p><strong>Tipo:</strong> {String(item.tipo)}</p>
+          <p><strong>Texto:</strong> {String(item.texto)}</p>
           <p>
-            <strong>Tipo:</strong> {item.tipo}
+            <strong>Resultado:</strong>{" "}
+            {typeof item.resultado === "string"
+              ? item.resultado
+              : JSON.stringify(item.resultado, null, 2)}
           </p>
-          <p>
-            <strong>Texto:</strong> {item.texto}
-          </p>
-          <p>
-            <strong>Resultado:</strong> {item.resultado}
-          </p>
-          <p>
-            <strong>Fecha:</strong> {formatFecha(item.timestamp)}
-          </p>
+          <p><strong>Fecha:</strong> {formatFecha(item.timestamp)}</p>
         </div>
       ))}
     </div>

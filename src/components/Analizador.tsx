@@ -15,18 +15,18 @@ function Informe({ informe }: { informe: any }) {
 
   return (
     <div>
-      <h3>{informe.consulta || "Consulta"}</h3>
+      <h3>{String(informe.consulta || "Consulta")}</h3>
 
       <section>
         <h4>Explicación doctrinal</h4>
-        <p>{informe.explicacion_doctrinal || "Sin contenido"}</p>
+        <p>{String(informe.explicacion_doctrinal || "Sin contenido")}</p>
       </section>
 
       <section>
         <h4>Jurisprudencia relevante</h4>
         <ul>
           {Array.isArray(informe.jurisprudencia_relevante) && informe.jurisprudencia_relevante.length > 0
-            ? informe.jurisprudencia_relevante.map((item: string, idx: number) => <li key={idx}>{item}</li>)
+            ? informe.jurisprudencia_relevante.map((item: any, idx: number) => <li key={idx}>{String(item)}</li>)
             : <li>No hay jurisprudencia</li>}
         </ul>
       </section>
@@ -35,14 +35,14 @@ function Informe({ informe }: { informe: any }) {
         <h4>Fallos relacionados</h4>
         <ul>
           {Array.isArray(informe.fallos_relacionados) && informe.fallos_relacionados.length > 0
-            ? informe.fallos_relacionados.map((item: string, idx: number) => <li key={idx}>{item}</li>)
+            ? informe.fallos_relacionados.map((item: any, idx: number) => <li key={idx}>{String(item)}</li>)
             : <li>No hay fallos relacionados</li>}
         </ul>
       </section>
 
-      <p><strong>Clasificación:</strong> {informe.clasificacion || "—"}</p>
-      <p><strong>Conclusión:</strong> {informe.conclusion || "—"}</p>
-      <p><em>Fuente:</em> {informe.fuente || "—"}</p>
+      <p><strong>Clasificación:</strong> {String(informe.clasificacion || "—")}</p>
+      <p><strong>Conclusión:</strong> {String(informe.conclusion || "—")}</p>
+      <p><em>Fuente:</em> {String(informe.fuente || "—")}</p>
     </div>
   );
 }
@@ -225,8 +225,8 @@ export default function Analizador() {
       {/* Mostrar mensaje/origen si existen */}
       {resultado && !resultado.informe && (
         <div style={{ marginTop: 16 }}>
-          {typeof resultado.mensaje === "string" && <p><strong>Mensaje:</strong> {resultado.mensaje}</p>}
-          {typeof resultado.origen === "string" && <p><strong>Origen:</strong> {resultado.origen}</p>}
+          {resultado.mensaje && <p><strong>Mensaje:</strong> {String(resultado.mensaje)}</p>}
+          {resultado.origen && <p><strong>Origen:</strong> {String(resultado.origen)}</p>}
           {!resultado.mensaje && !resultado.origen && (
             <pre>{JSON.stringify(resultado, null, 2)}</pre>
           )}

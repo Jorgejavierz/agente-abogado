@@ -3,8 +3,8 @@ import React, { useState } from "react";
 interface Informe {
   consulta: string;
   explicacion_doctrinal: string;
-  normativa_aplicable: string[];
-  jurisprudencia_relevante: string;
+  normativa_aplicable: string[] | string;
+  jurisprudencia_relevante: string | string[];
   fallos_relacionados: any[];
   clasificacion: string;
   riesgos_legales: string;
@@ -17,6 +17,8 @@ function DocumentAgent() {
   const [file, setFile] = useState<File | null>(null);
   const [question, setQuestion] = useState<string>("");
   const [answer, setAnswer] = useState<Informe | null>(null);
+  const [mensaje, setMensaje] = useState<string | null>(null);
+  const [origen, setOrigen] = useState<string | null>(null);
 
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     if (event.target.files && event.target.files.length > 0) {
@@ -39,7 +41,10 @@ function DocumentAgent() {
     });
 
     const data = await resp.json();
-    alert("Documento cargado: " + data.mensaje);
+    // Manejo seguro de mensaje
+    setMensaje(String(data.mensaje || ""));
+    setOrigen(String(data.origen || ""));
+    alert("Documento cargado: " + String(data.mensaje));
   };
 
   const handleAsk = async () => {
@@ -55,7 +60,16 @@ function DocumentAgent() {
     );
 
     const data = await resp.json();
-    setAnswer(data.informe); // 👈 ahora guardamos el informe narrativo
+
+    if (data.informe) {
+      setAnswer(data.informe);
+      setMensaje(null);
+      setOrigen(null);
+    } else {
+      setAnswer(null);
+      setMensaje(String(data.mensaje || ""));
+      setOrigen(String(data.origen || ""));
+    }
   };
 
   return (
@@ -84,17 +98,42 @@ function DocumentAgent() {
 
       {/* Mostrar informe narrativo */}
       {answer && (
-        <div style={{ marginTop: "20px", border: "1px solid #ccc", padding: "15px", borderRadius: "8px" }}>
+        <div
+          style={{
+            marginTop: "20px",
+            border: "1px solid #ccc",
+            padding: "15px",
+            borderRadius: "8px",
+          }}
+        >
           <h2>Informe generado</h2>
-          <p><strong>Consulta:</strong> {answer.consulta}</p>
-          <p><strong>Clasificación:</strong> {answer.clasificacion}</p>
-          <p><strong>Explicación doctrinal:</strong> {answer.explicacion_doctrinal}</p>
-          <p><strong>Normativa aplicable:</strong> {answer.normativa_aplicable.join(", ")}</p>
-          <p><strong>Jurisprudencia relevante:</strong> {answer.jurisprudencia_relevante}</p>
-          <p><strong>Riesgos legales:</strong> {answer.riesgos_legales}</p>
-          <p><strong>Recomendaciones:</strong> {answer.recomendaciones}</p>
-          <p><strong>Conclusión:</strong> {answer.conclusion}</p>
-          <p><strong>Fuente:</strong> {answer.fuente}</p>
+          <p><strong>Consulta:</strong> {String(answer.consulta)}</p>
+          <p><strong>Clasificación:</strong> {String(answer.clasificacion)}</p>
+          <p><strong>Explicación doctrinal:</strong> {String(answer.explicacion_doctrinal)}</p>
+          <p>
+            <strong>Normativa aplicable:</strong>{" "}
+            {Array.isArray(answer.normativa_aplicable)
+              ? answer.normativa_aplicable.join(", ")
+              : String(answer.normativa_aplicable)}
+          </p>
+          <p>
+            <strong>Jurisprudencia relevante:</strong>{" "}
+            {Array.isArray(answer.jurisprudencia_relevante)
+              ? answer.jurisprudencia_relevante.join(", ")
+              : String(answer.jurisprudencia_relevante)}
+          </p>
+          <p><strong>Riesgos legales:</strong> {String(answer.riesgos_legales)}</p>
+          <p><strong>Recomendaciones:</strong> {String(answer.recomendaciones)}</p>
+          <p><strong>Conclusión:</strong> {String(answer.conclusion)}</p>
+          <p><strong>Fuente:</strong> {String(answer.fuente)}</p>
+        </div>
+      )}
+
+      {/* Mostrar mensaje/origen si no hay informe */}
+      {!answer && (mensaje || origen) && (
+        <div style={{ marginTop: "20px" }}>
+          {mensaje && <p><strong>Mensaje:</strong> {mensaje}</p>}
+          {origen && <p><strong>Origen:</strong> {origen}</p>}
         </div>
       )}
     </div>
