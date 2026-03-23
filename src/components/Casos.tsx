@@ -1,39 +1,41 @@
-// src/components/Historial.tsx
+// src/components/Casos.tsx
 import React, { useEffect, useState } from "react";
 
-const API_BASE = "https://agente-abogado.onrender.com"; 
+const API_BASE = "https://agente-abogado.onrender.com";
 
-interface MemoriaItem {
+interface CasoItem {
   id: number;
   tipo: string;
   texto: string;
-  resultado: string | object; // puede venir como string o como objeto
+  normativa: string;
+  jurisprudencia: string;
+  resultado: string;
   timestamp: string;
 }
 
-const Historial: React.FC = () => {
-  const [memoria, setMemoria] = useState<MemoriaItem[]>([]);
+const Casos: React.FC = () => {
+  const [casos, setCasos] = useState<CasoItem[]>([]);
   const [cargando, setCargando] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    const fetchMemoria = async () => {
+    const fetchCasos = async () => {
       setCargando(true);
       setError(null);
       try {
-        const res = await fetch(`${API_BASE}/memoria?limit=5`);
+        const res = await fetch(`${API_BASE}/casos?limit=5`);
         if (!res.ok) throw new Error(`Error ${res.status}`);
         const data = await res.json();
-        if (data.memoria && Array.isArray(data.memoria)) {
-          setMemoria(data.memoria);
+        if (data.casos && Array.isArray(data.casos)) {
+          setCasos(data.casos);
         }
       } catch {
-        setError("Error cargando historial.");
+        setError("Error cargando casos.");
       } finally {
         setCargando(false);
       }
     };
-    fetchMemoria();
+    fetchCasos();
   }, []);
 
   const formatFecha = (timestamp: string) => {
@@ -52,27 +54,27 @@ const Historial: React.FC = () => {
   };
 
   if (cargando) {
-    return <p>Cargando historial…</p>;
+    return <p>Cargando casos…</p>;
   }
 
   if (error) {
     return <p style={{ color: "crimson" }}>{error}</p>;
   }
 
-  if (memoria.length === 0) {
+  if (casos.length === 0) {
     return (
       <div style={{ maxWidth: 800, margin: "0 auto", padding: 24 }}>
-        <p>No hay análisis guardados todavía.</p>
+        <p>No hay casos guardados todavía.</p>
       </div>
     );
   }
 
   return (
     <div style={{ maxWidth: 800, margin: "0 auto", padding: 24 }}>
-      <h2 style={{ fontWeight: 700, fontSize: 20 }}>Últimos análisis</h2>
-      {memoria.map((item) => (
+      <h2 style={{ fontWeight: 700, fontSize: 20 }}>Casos guardados</h2>
+      {casos.map((c) => (
         <div
-          key={item.id}
+          key={c.id}
           style={{
             marginTop: 16,
             padding: 16,
@@ -81,19 +83,16 @@ const Historial: React.FC = () => {
             background: "#fafafa",
           }}
         >
-          <p><strong>Tipo:</strong> {String(item.tipo)}</p>
-          <p><strong>Texto:</strong> {String(item.texto)}</p>
-          <p>
-            <strong>Resultado:</strong>{" "}
-            {typeof item.resultado === "string"
-              ? item.resultado
-              : JSON.stringify(item.resultado, null, 2)}
-          </p>
-          <p><strong>Fecha:</strong> {formatFecha(item.timestamp)}</p>
+          <p><strong>Tipo:</strong> {c.tipo}</p>
+          <p><strong>Texto:</strong> {c.texto}</p>
+          <p><strong>Normativa:</strong> {c.normativa}</p>
+          <p><strong>Jurisprudencia:</strong> {c.jurisprudencia}</p>
+          <p><strong>Resultado:</strong> {c.resultado}</p>
+          <p><strong>Fecha:</strong> {formatFecha(c.timestamp)}</p>
         </div>
       ))}
     </div>
   );
 };
 
-export default Historial;
+export default Casos;

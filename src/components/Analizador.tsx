@@ -5,14 +5,16 @@ import { FaBalanceScale } from "react-icons/fa";
 const API_BASE = "https://agente-abogado.onrender.com";
 const MAX_FILE_SIZE_MB = 10;
 
-// 🔹 Componente para mostrar el informe
+// 🔹 Componente para mostrar el informe completo
 function Informe({ informe }: { informe: any }) {
   if (!informe) return null;
 
+  // Si el backend devuelve un string plano
   if (typeof informe === "string") {
     return <div>{informe}</div>;
   }
 
+  // Si devuelve un objeto con campos
   return (
     <div>
       <h3>{String(informe.consulta || "Consulta")}</h3>
@@ -24,11 +26,7 @@ function Informe({ informe }: { informe: any }) {
 
       <section>
         <h4>Jurisprudencia relevante</h4>
-        <ul>
-          {Array.isArray(informe.jurisprudencia_relevante) && informe.jurisprudencia_relevante.length > 0
-            ? informe.jurisprudencia_relevante.map((item: any, idx: number) => <li key={idx}>{String(item)}</li>)
-            : <li>No hay jurisprudencia</li>}
-        </ul>
+        <p>{String(informe.jurisprudencia_relevante || "No hay jurisprudencia")}</p>
       </section>
 
       <section>
@@ -135,7 +133,7 @@ export default function Analizador() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          texto,
+          texto: resultado?.informe || texto,
           util,
           timestamp: new Date().toISOString(),
         }),
@@ -209,7 +207,7 @@ export default function Analizador() {
       {resultado?.informe && (
         <div style={{ marginTop: 16 }}>
           <h2>Informe narrativo</h2>
-          <Informe informe={resultado.informe} />
+          <Informe informe={resultado} />
           <button onClick={descargarPDF}>📄 Descargar PDF</button>
           {!feedbackEnviado ? (
             <div>
