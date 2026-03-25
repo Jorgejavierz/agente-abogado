@@ -2,19 +2,16 @@ import { useState } from "react";
 import jsPDF from "jspdf";
 import { FaBalanceScale } from "react-icons/fa";
 
-const API_BASE = "https://agente-abogado.onrender.com";
+const API_BASE = import.meta.env.VITE_API_URL; // ✅ ahora toma la URL del backend desde .env
 const MAX_FILE_SIZE_MB = 10;
 
-// 🔹 Componente para mostrar el informe completo
 function Informe({ informe }: { informe: any }) {
   if (!informe) return null;
 
-  // Si el backend devuelve un string plano
   if (typeof informe === "string") {
     return <div>{informe}</div>;
   }
 
-  // Si devuelve un objeto con campos
   return (
     <div>
       <h3>{String(informe.consulta || "Consulta")}</h3>
@@ -112,8 +109,7 @@ export default function Analizador() {
 
     try {
       const res = await fetch(
-        `${API_BASE}/consultar_documento?pregunta=${encodeURIComponent(texto)}`,
-        { method: "GET" }
+        `${API_BASE}/consultar_documento?pregunta=${encodeURIComponent(texto)}`
       );
 
       if (!res.ok) throw new Error(`Error ${res.status}`);
@@ -185,7 +181,6 @@ export default function Analizador() {
 
       <input type="file" accept=".txt,.pdf,.docx" onChange={manejarArchivo} />
 
-      {/* Bloque drag & drop */}
       <div
         onDrop={manejarDrop}
         onDragOver={(e) => e.preventDefault()}
@@ -203,7 +198,6 @@ export default function Analizador() {
 
       {error && <p style={{ color: "crimson" }}>{error}</p>}
 
-      {/* Mostrar informe si existe */}
       {resultado?.informe && (
         <div style={{ marginTop: 16 }}>
           <h2>Informe narrativo</h2>
@@ -220,7 +214,6 @@ export default function Analizador() {
         </div>
       )}
 
-      {/* Mostrar mensaje/origen si existen */}
       {resultado && !resultado.informe && (
         <div style={{ marginTop: 16 }}>
           {resultado.mensaje && <p><strong>Mensaje:</strong> {String(resultado.mensaje)}</p>}
