@@ -1,5 +1,7 @@
 import React, { useState } from "react";
 
+const API_BASE = import.meta.env.VITE_API_URL; // ✅ ahora usa la URL del backend desde .env
+
 interface Informe {
   consulta: string;
   explicacion_doctrinal: string;
@@ -35,13 +37,12 @@ function DocumentAgent() {
     const formData = new FormData();
     formData.append("file", file);
 
-    const resp = await fetch("http://localhost:8000/upload_document", {
+    const resp = await fetch(`${API_BASE}/upload_document`, {
       method: "POST",
       body: formData,
     });
 
     const data = await resp.json();
-    // Manejo seguro de mensaje
     setMensaje(String(data.mensaje || ""));
     setOrigen(String(data.origen || ""));
     alert("Documento cargado: " + String(data.mensaje));
@@ -54,7 +55,7 @@ function DocumentAgent() {
     }
 
     const resp = await fetch(
-      `http://localhost:8000/consultar_documento?pregunta=${encodeURIComponent(
+      `${API_BASE}/consultar_documento?pregunta=${encodeURIComponent(
         question
       )}&k=3`
     );

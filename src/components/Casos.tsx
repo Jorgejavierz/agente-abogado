@@ -1,7 +1,7 @@
 // src/components/Casos.tsx
 import React, { useEffect, useState } from "react";
 
-const API_BASE = "https://agente-abogado.onrender.com";
+const API_BASE = import.meta.env.VITE_API_URL; // ✅ ahora usa la variable de entorno
 
 interface CasoItem {
   id: number;

@@ -1,6 +1,6 @@
 import { useState } from "react";
 
-const API_BASE = "https://agente-abogado.onrender.com";
+const API_BASE = import.meta.env.VITE_API_URL; // ✅ ahora usa la variable de entorno
 
 export default function CalculadoraIntereses() {
   const [capital, setCapital] = useState("");

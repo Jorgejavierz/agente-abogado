@@ -1,13 +1,13 @@
 // src/components/Historial.tsx
 import React, { useEffect, useState } from "react";
 
-const API_BASE = "https://agente-abogado.onrender.com"; 
+const API_BASE = import.meta.env.VITE_API_URL; // ✅ ahora usa la variable de entorno
 
 interface MemoriaItem {
   id: number;
   tipo: string;
   texto: string;
-  resultado: string | object; // puede venir como string o como objeto
+  resultado: string | object;
   timestamp: string;
 }
 
