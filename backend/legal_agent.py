@@ -1,5 +1,3 @@
-# legal_agent.py
-
 import json
 import unicodedata
 import requests
@@ -29,7 +27,15 @@ class LaborLawyerAgent:
 
     def __init__(self, db, llm_client=None):
         self.db = db
-        self.llm_client = llm_client or OpenAI(api_key=OPENAI_API_KEY)
+
+        # ============================================
+        # 🔥 CAMBIO CLAVE: usar DeepSeek SIEMPRE
+        # ============================================
+        self.llm_client = llm_client or OpenAI(
+            api_key=OPENAI_API_KEY,
+            base_url="https://api.deepseek.com/v1"
+        )
+
         self.buscador = Jurisprudencia()
         self.context_builder = ContextBuilder()
 
@@ -111,19 +117,6 @@ class LaborLawyerAgent:
     # Lógica principal
     # ============================================================
     def responder(self, texto: str) -> dict:
-        """
-        Flujo completo:
-        1. Clasificación
-        2. FAISS
-        3. Jurisprudencia
-        4. Doctrina
-        5. Historial + Casos (DB)
-        6. Construcción de contexto
-        7. Prompt jurídico
-        8. LLM
-        9. Formateo
-        10. Guardado en memoria y casos
-        """
 
         clasificacion = self._clasificar(texto)
         antecedentes_faiss = self.buscar_en_faiss(texto)
@@ -143,7 +136,9 @@ class LaborLawyerAgent:
             casos=contexto["casos"]
         ) + f"\n\n=== CONSULTA DEL USUARIO ===\n{texto}\n"
 
-        # LLM
+        # ============================================================
+        # 🔥 LLM (DeepSeek)
+        # ============================================================
         informe = None
         try:
             resp = self.llm_client.chat.completions.create(

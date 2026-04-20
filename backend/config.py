@@ -3,13 +3,19 @@ from openai import OpenAI
 from backend.db import MemoriaDB
 
 # ============================================================
-# CONFIGURACIÓN DEL LLM
+# CONFIGURACIÓN DEL LLM (DeepSeek)
 # ============================================================
 
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "")
-llm_client = OpenAI(api_key=OPENAI_API_KEY)
 
-MODEL_NAME = os.getenv("MODEL_NAME", "gpt-4o-mini")
+# Cambiamos la URL base para usar DeepSeek
+llm_client = OpenAI(
+    api_key=OPENAI_API_KEY,
+    base_url="https://api.deepseek.com/v1"
+)
+
+# Cambiamos el modelo por el de DeepSeek
+MODEL_NAME = os.getenv("MODEL_NAME", "deepseek-chat")
 
 # ============================================================
 # CONFIGURACIÓN DE FAISS
