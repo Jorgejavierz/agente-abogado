@@ -9,14 +9,14 @@ RUN apt-get update && apt-get install -y \
 # Crear directorio de trabajo
 WORKDIR /app
 
-# Copiar backend al contenedor
-COPY backend/ /app/
+# Copiar backend dentro de /app/backend
+COPY backend/ /app/backend/
 
-# Instalar dependencias de Python
-RUN pip install --no-cache-dir -r requirements.txt
+# Instalar dependencias
+RUN pip install --no-cache-dir -r /app/backend/requirements.txt
 
 # Exponer el puerto
 EXPOSE 8000
 
 # Comando de inicio
-CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["uvicorn", "backend.main:app", "--host", "0.0.0.0", "--port", "8000"]
