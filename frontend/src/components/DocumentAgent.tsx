@@ -37,7 +37,8 @@ function DocumentAgent() {
     const formData = new FormData();
     formData.append("file", file);
 
-    const resp = await fetch(`${API_BASE}/upload_document`, {
+    // 🔥 ENDPOINT CORREGIDO
+    const resp = await fetch(`${API_BASE}/procesar-documento`, {
       method: "POST",
       body: formData,
     });
