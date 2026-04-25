@@ -1,7 +1,7 @@
 // src/components/Casos.tsx
 import React, { useEffect, useState } from "react";
 
-const API_BASE = import.meta.env.VITE_API_URL; // ✅ ahora usa la variable de entorno
+const API_BASE = import.meta.env.VITE_API_URL;
 
 interface CasoItem {
   id: number;
@@ -22,19 +22,29 @@ const Casos: React.FC = () => {
     const fetchCasos = async () => {
       setCargando(true);
       setError(null);
+
       try {
         const res = await fetch(`${API_BASE}/casos?limit=5`);
-        if (!res.ok) throw new Error(`Error ${res.status}`);
+
+        if (!res.ok) {
+          throw new Error(`Error ${res.status}`);
+        }
+
         const data = await res.json();
+
         if (data.casos && Array.isArray(data.casos)) {
           setCasos(data.casos);
+        } else {
+          setCasos([]);
         }
-      } catch {
+      } catch (err) {
+        console.error(err);
         setError("Error cargando casos.");
       } finally {
         setCargando(false);
       }
     };
+
     fetchCasos();
   }, []);
 
@@ -72,6 +82,7 @@ const Casos: React.FC = () => {
   return (
     <div style={{ maxWidth: 800, margin: "0 auto", padding: 24 }}>
       <h2 style={{ fontWeight: 700, fontSize: 20 }}>Casos guardados</h2>
+
       {casos.map((c) => (
         <div
           key={c.id}

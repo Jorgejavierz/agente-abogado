@@ -2,7 +2,7 @@ import { useState } from "react";
 import jsPDF from "jspdf";
 import { FaBalanceScale } from "react-icons/fa";
 
-const API_BASE = import.meta.env.VITE_API_URL; // ✅ ahora toma la URL del backend desde .env
+const API_BASE = import.meta.env.VITE_API_URL;
 const MAX_FILE_SIZE_MB = 10;
 
 function Informe({ informe }: { informe: any }) {
@@ -59,7 +59,7 @@ export default function Analizador() {
       const formData = new FormData();
       formData.append("file", file);
 
-      const res = await fetch(`${API_BASE}/upload_document`, {
+      const res = await fetch(`${API_BASE}/procesar-documento`, {
         method: "POST",
         body: formData,
       });
@@ -68,7 +68,8 @@ export default function Analizador() {
 
       const data = await res.json();
       setResultado(data);
-    } catch {
+    } catch (err) {
+      console.error(err);
       setError("No se pudo analizar el archivo. Intentá más tarde.");
     } finally {
       setCargando(false);
@@ -116,7 +117,8 @@ export default function Analizador() {
 
       const data = await res.json();
       setResultado(data);
-    } catch {
+    } catch (err) {
+      console.error(err);
       setError("No se pudo analizar. Revisá el texto o intentá más tarde.");
     } finally {
       setCargando(false);
@@ -136,7 +138,7 @@ export default function Analizador() {
       });
       setFeedbackEnviado(true);
     } catch {
-      // si falla, no bloquea la UX
+      // no bloquea UX
     }
   };
 
