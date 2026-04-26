@@ -1,7 +1,7 @@
 // src/components/Historial.tsx
 import React, { useEffect, useState } from "react";
 
-const API_BASE = import.meta.env.VITE_API_URL; // ✅ ahora usa la variable de entorno
+const API_BASE = import.meta.env.VITE_API_URL;
 
 interface MemoriaItem {
   id: number;
@@ -20,19 +20,29 @@ const Historial: React.FC = () => {
     const fetchMemoria = async () => {
       setCargando(true);
       setError(null);
+
       try {
         const res = await fetch(`${API_BASE}/memoria?limit=5`);
-        if (!res.ok) throw new Error(`Error ${res.status}`);
+
+        if (!res.ok) {
+          throw new Error(`Error ${res.status}`);
+        }
+
         const data = await res.json();
+
         if (data.memoria && Array.isArray(data.memoria)) {
           setMemoria(data.memoria);
+        } else {
+          setMemoria([]);
         }
-      } catch {
+      } catch (err) {
+        console.error(err);
         setError("Error cargando historial.");
       } finally {
         setCargando(false);
       }
     };
+
     fetchMemoria();
   }, []);
 
@@ -70,6 +80,7 @@ const Historial: React.FC = () => {
   return (
     <div style={{ maxWidth: 800, margin: "0 auto", padding: 24 }}>
       <h2 style={{ fontWeight: 700, fontSize: 20 }}>Últimos análisis</h2>
+
       {memoria.map((item) => (
         <div
           key={item.id}
@@ -83,12 +94,14 @@ const Historial: React.FC = () => {
         >
           <p><strong>Tipo:</strong> {String(item.tipo)}</p>
           <p><strong>Texto:</strong> {String(item.texto)}</p>
+
           <p>
             <strong>Resultado:</strong>{" "}
             {typeof item.resultado === "string"
               ? item.resultado
               : JSON.stringify(item.resultado, null, 2)}
           </p>
+
           <p><strong>Fecha:</strong> {formatFecha(item.timestamp)}</p>
         </div>
       ))}
