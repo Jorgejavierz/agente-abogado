@@ -1,6 +1,5 @@
 import { useState } from "react";
-
-const API_BASE = import.meta.env.VITE_API_URL; // ✅ ahora usa la variable de entorno
+import { API_BASE } from "../config";
 
 export default function CalculadoraIntereses() {
   const [capital, setCapital] = useState("");

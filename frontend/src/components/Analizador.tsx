@@ -1,8 +1,8 @@
 import { useState } from "react";
 import jsPDF from "jspdf";
 import { FaBalanceScale } from "react-icons/fa";
+import { API_BASE } from "../config";
 
-const API_BASE = import.meta.env.VITE_API_URL;
 const MAX_FILE_SIZE_MB = 10;
 
 function Informe({ informe }: { informe: any }) {
