@@ -1,22 +1,26 @@
 FROM python:3.11-slim
 
-# Instalar dependencias del sistema
+# Instalar dependencias del sistema necesarias para pdf2image y pytesseract
 RUN apt-get update && apt-get install -y \
     poppler-utils \
     tesseract-ocr \
     && rm -rf /var/lib/apt/lists/*
 
-# Crear directorio de trabajo
+# Directorio de trabajo
 WORKDIR /app
 
-# Copiar backend dentro de /app/backend
-COPY backend/ /app/backend/
+# Copiar requirements del backend
+COPY backend/requirements.txt /app/requirements.txt
 
-# Instalar dependencias
-RUN pip install --no-cache-dir -r /app/backend/requirements.txt
+# Instalar dependencias de Python
+RUN pip install --no-cache-dir -r requirements.txt
 
-# Exponer el puerto
+# Copiar SOLO el backend (no frontend, no venv, no node_modules)
+COPY backend/ /app/
+
+# Exponer puerto
 EXPOSE 8000
 
-# Comando de inicio
-CMD ["uvicorn", "backend.main:app", "--host", "0.0.0.0", "--port", "8000"]
+# Entrar al backend y ejecutar FastAPI
+WORKDIR /app
+CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
