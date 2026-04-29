@@ -15,12 +15,11 @@ COPY backend/requirements.txt /app/requirements.txt
 # Instalar dependencias de Python
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copiar SOLO el backend (no frontend, no venv, no node_modules)
-COPY backend/ /app/
+# Copiar el backend manteniendo la carpeta backend/
+COPY backend/ /app/backend/
 
 # Exponer puerto
 EXPOSE 8000
 
-# Entrar al backend y ejecutar FastAPI
-WORKDIR /app
-CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
+# Ejecutar FastAPI apuntando al módulo correcto
+CMD ["uvicorn", "backend.main:app", "--host", "0.0.0.0", "--port", "8000"]
