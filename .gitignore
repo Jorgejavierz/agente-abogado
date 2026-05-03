@@ -32,3 +32,8 @@ __pycache__/
 .env
 .env.local
 .env.production
+node_modules/
+dist/
+*.txt
+build-log.txt
+ci-log.txt
