@@ -7,7 +7,7 @@ from fastapi.middleware.cors import CORSMiddleware
 import uvicorn
 
 # Configuración centralizada
-from backend.config import db, llm_client, FAISS_SERVER
+from backend.config import db
 
 # Agente jurídico
 from backend.legal_agent import LaborLawyerAgent
@@ -52,7 +52,7 @@ app.add_middleware(
 # Inicializar el agente
 # ============================================================
 try:
-    app.state.agent = LaborLawyerAgent(db=db, llm_client=llm_client)
+    app.state.agent = LaborLawyerAgent(db=db)
     logger.info("LaborLawyerAgent inicializado correctamente.")
 except Exception as e:
     logger.exception("Error al inicializar LaborLawyerAgent.")

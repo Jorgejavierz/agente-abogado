@@ -1,10 +1,9 @@
 import json
 import unicodedata
 import requests
-from openai import OpenAI
 
 # Configuración y módulos internos
-from backend.config import OPENAI_API_KEY, MODEL_NAME, FAISS_SERVER
+from backend.config import llm_client as default_llm_client, MODEL_NAME, FAISS_SERVER
 from backend.juris_search import Jurisprudencia
 from backend.prompt import LABOR_LAWYER_PROMPT
 from backend.core.formatter import ResponseFormatter
@@ -27,15 +26,7 @@ class LaborLawyerAgent:
 
     def __init__(self, db, llm_client=None):
         self.db = db
-
-        # ============================================
-        # 🔥 CAMBIO CLAVE: usar DeepSeek SIEMPRE
-        # ============================================
-        self.llm_client = llm_client or OpenAI(
-            api_key=OPENAI_API_KEY,
-            base_url="https://api.deepseek.com/v1"
-        )
-
+        self.llm_client = llm_client or default_llm_client
         self.buscador = Jurisprudencia()
         self.context_builder = ContextBuilder()
 

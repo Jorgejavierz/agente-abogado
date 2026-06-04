@@ -1,3 +1,6 @@
+from dotenv import load_dotenv
+load_dotenv()
+
 import os
 from openai import OpenAI
 from backend.db import MemoriaDB
@@ -6,15 +9,16 @@ from backend.db import MemoriaDB
 # CONFIGURACIÓN DEL LLM (DeepSeek)
 # ============================================================
 
-OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "")
+API_KEY = os.getenv("OPENAI_API_KEY")
 
-# Cambiamos la URL base para usar DeepSeek
+if not API_KEY:
+    raise ValueError("❌ No se encontró OPENAI_API_KEY en el entorno. Verificá el archivo .env")
+
 llm_client = OpenAI(
-    api_key=OPENAI_API_KEY,
+    api_key=API_KEY,
     base_url="https://api.deepseek.com/v1"
 )
 
-# Cambiamos el modelo por el de DeepSeek
 MODEL_NAME = os.getenv("MODEL_NAME", "deepseek-chat")
 
 # ============================================================
