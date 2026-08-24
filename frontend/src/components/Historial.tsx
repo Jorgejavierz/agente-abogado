@@ -21,7 +21,8 @@ const Historial: React.FC = () => {
       setError(null);
 
       try {
-        const res = await fetch(`${API_BASE}/memoria?limit=5`);
+        // 🔥 Endpoint corregido
+        const res = await fetch(`${API_BASE}/historial?limit=5`);
 
         if (!res.ok) {
           throw new Error(`Error ${res.status}`);
@@ -29,8 +30,8 @@ const Historial: React.FC = () => {
 
         const data = await res.json();
 
-        if (data.memoria && Array.isArray(data.memoria)) {
-          setMemoria(data.memoria);
+        if (data.historial && Array.isArray(data.historial)) {
+          setMemoria(data.historial);
         } else {
           setMemoria([]);
         }
@@ -94,12 +95,12 @@ const Historial: React.FC = () => {
           <p><strong>Tipo:</strong> {String(item.tipo)}</p>
           <p><strong>Texto:</strong> {String(item.texto)}</p>
 
-          <p>
-            <strong>Resultado:</strong>{" "}
+          <p><strong>Resultado:</strong></p>
+          <pre style={{ whiteSpace: "pre-wrap" }}>
             {typeof item.resultado === "string"
               ? item.resultado
               : JSON.stringify(item.resultado, null, 2)}
-          </p>
+          </pre>
 
           <p><strong>Fecha:</strong> {formatFecha(item.timestamp)}</p>
         </div>

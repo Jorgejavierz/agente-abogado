@@ -7,7 +7,7 @@ interface CasoItem {
   tipo: string;
   texto: string;
   normativa: string;
-  jurisprudencia: string;
+  jurisprudencia: string; // viene como JSON string
   resultado: string;
   timestamp: string;
 }
@@ -62,6 +62,20 @@ const Casos: React.FC = () => {
     }
   };
 
+  const parseJurisprudencia = (raw: string) => {
+    try {
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed)) {
+        return parsed.map((j, i) => (
+          <li key={i}>{JSON.stringify(j, null, 2)}</li>
+        ));
+      }
+      return <li>{String(parsed)}</li>;
+    } catch {
+      return <li>{raw}</li>;
+    }
+  };
+
   if (cargando) {
     return <p>Cargando casos…</p>;
   }
@@ -96,8 +110,13 @@ const Casos: React.FC = () => {
           <p><strong>Tipo:</strong> {c.tipo}</p>
           <p><strong>Texto:</strong> {c.texto}</p>
           <p><strong>Normativa:</strong> {c.normativa}</p>
-          <p><strong>Jurisprudencia:</strong> {c.jurisprudencia}</p>
-          <p><strong>Resultado:</strong> {c.resultado}</p>
+
+          <p><strong>Jurisprudencia:</strong></p>
+          <ul>{parseJurisprudencia(c.jurisprudencia)}</ul>
+
+          <p><strong>Resultado:</strong></p>
+          <pre style={{ whiteSpace: "pre-wrap" }}>{c.resultado}</pre>
+
           <p><strong>Fecha:</strong> {formatFecha(c.timestamp)}</p>
         </div>
       ))}

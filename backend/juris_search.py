@@ -130,3 +130,27 @@ class Jurisprudencia:
         resultados.sort(key=lambda x: x.get("fecha") or "", reverse=True)
 
         return resultados or []
+
+# Instancia global del buscador de jurisprudencia
+_juris = Jurisprudencia()
+
+def buscar_jurisprudencia(consulta: str, k: int = 5, incluir_scraping: bool = True):
+    """
+    Wrapper para motor.py.
+    Usa la clase Jurisprudencia y devuelve resultados uniformes.
+    """
+    try:
+        resultados = _juris.buscar_fallos(consulta, top_k=k, incluir_scraping=incluir_scraping)
+        return {
+            "consulta": consulta,
+            "jurisprudencia_relevante": resultados,
+            "detalle": "Consulta de jurisprudencia procesada correctamente.",
+            "origen": "Agente Laboral IA"
+        }
+    except Exception as e:
+        return {
+            "consulta": consulta,
+            "jurisprudencia_relevante": [],
+            "detalle": f"Error en búsqueda de jurisprudencia: {e}",
+            "origen": "Agente Laboral IA"
+        }

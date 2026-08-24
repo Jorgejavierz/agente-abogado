@@ -21,6 +21,10 @@ from backend.routes.chat import router as chat_router
 from backend.routes.intereses import router as intereses_router
 from backend.routes.casos import router as casos_router
 
+# Razonamiento jurídico
+from backend.core.razonamiento.motor import razonamiento_juridico
+from pydantic import BaseModel
+
 # Logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("backend")
@@ -68,6 +72,21 @@ app.include_router(memoria_router)
 app.include_router(chat_router)
 app.include_router(intereses_router)
 app.include_router(casos_router)
+
+
+# ============================================================
+# Endpoint de razonamiento jurídico
+# ============================================================
+class Consulta(BaseModel):
+    texto: str
+
+@app.post("/consulta")
+async def procesar_consulta(payload: Consulta):
+    """
+    Endpoint principal para procesar consultas jurídicas.
+    """
+    resultado = razonamiento_juridico(payload.texto)
+    return resultado
 
 
 # ============================================================

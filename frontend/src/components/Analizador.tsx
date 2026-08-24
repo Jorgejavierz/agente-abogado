@@ -8,10 +8,6 @@ const MAX_FILE_SIZE_MB = 10;
 function Informe({ informe }: { informe: any }) {
   if (!informe) return null;
 
-  if (typeof informe === "string") {
-    return <div>{informe}</div>;
-  }
-
   return (
     <div>
       <h3>{String(informe.consulta || "Consulta")}</h3>
@@ -22,22 +18,23 @@ function Informe({ informe }: { informe: any }) {
       </section>
 
       <section>
-        <h4>Jurisprudencia relevante</h4>
-        <p>{String(informe.jurisprudencia_relevante || "No hay jurisprudencia")}</p>
+        <h4>Fallos relacionados</h4>
+        <pre>{JSON.stringify(informe.fallos_relacionados || [], null, 2)}</pre>
       </section>
 
       <section>
-        <h4>Fallos relacionados</h4>
-        <ul>
-          {Array.isArray(informe.fallos_relacionados) && informe.fallos_relacionados.length > 0
-            ? informe.fallos_relacionados.map((item: any, idx: number) => <li key={idx}>{String(item)}</li>)
-            : <li>No hay fallos relacionados</li>}
-        </ul>
+        <h4>Antecedentes FAISS</h4>
+        <pre>{JSON.stringify(informe.antecedentes_faiss || [], null, 2)}</pre>
       </section>
 
       <p><strong>Clasificación:</strong> {String(informe.clasificacion || "—")}</p>
+
+      <section>
+        <h4>Informe narrativo</h4>
+        <pre>{String(informe.informe || "—")}</pre>
+      </section>
+
       <p><strong>Conclusión:</strong> {String(informe.conclusion || "—")}</p>
-      <p><em>Fuente:</em> {String(informe.fuente || "—")}</p>
     </div>
   );
 }
@@ -47,8 +44,10 @@ export default function Analizador() {
   const [resultado, setResultado] = useState<any>(null);
   const [cargando, setCargando] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [feedbackEnviado, setFeedbackEnviado] = useState(false);
 
+  // ============================
+  // SUBIR ARCHIVO → /analizar
+  // ============================
   const enviarArchivoAlBackend = async (file: File) => {
     if (cargando) return;
     setCargando(true);
@@ -59,7 +58,7 @@ export default function Analizador() {
       const formData = new FormData();
       formData.append("file", file);
 
-      const res = await fetch(`${API_BASE}/procesar-documento`, {
+      const res = await fetch(`${API_BASE}/analizar`, {
         method: "POST",
         body: formData,
       });
@@ -101,17 +100,21 @@ export default function Analizador() {
     enviarArchivoAlBackend(file);
   };
 
+  // ============================
+  // ANALIZAR TEXTO PEGADO → /chat
+  // ============================
   const analizarTextoPegado = async () => {
     if (cargando) return;
     setCargando(true);
     setError(null);
     setResultado(null);
-    setFeedbackEnviado(false);
 
     try {
-      const res = await fetch(
-        `${API_BASE}/consultar_documento?pregunta=${encodeURIComponent(texto)}`
-      );
+      const res = await fetch(`${API_BASE}/chat`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ mensaje: texto }),
+      });
 
       if (!res.ok) throw new Error(`Error ${res.status}`);
 
@@ -122,23 +125,6 @@ export default function Analizador() {
       setError("No se pudo analizar. Revisá el texto o intentá más tarde.");
     } finally {
       setCargando(false);
-    }
-  };
-
-  const enviarFeedback = async (util: boolean) => {
-    try {
-      await fetch(`${API_BASE}/feedback`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          texto: resultado?.informe || texto,
-          util,
-          timestamp: new Date().toISOString(),
-        }),
-      });
-      setFeedbackEnviado(true);
-    } catch {
-      // no bloquea UX
     }
   };
 
@@ -154,7 +140,7 @@ export default function Analizador() {
         : JSON.stringify(resultado.informe, null, 2);
 
     doc.text(contenido, 10, 10, { maxWidth: 190 });
-    doc.save("informe_agente_abogado.pdf");
+    doc.save("informe_agente_laboral.pdf");
   };
 
   return (
@@ -205,24 +191,12 @@ export default function Analizador() {
           <h2>Informe narrativo</h2>
           <Informe informe={resultado} />
           <button onClick={descargarPDF}>📄 Descargar PDF</button>
-          {!feedbackEnviado ? (
-            <div>
-              <button onClick={() => enviarFeedback(true)}>👍 Útil</button>
-              <button onClick={() => enviarFeedback(false)}>👎 No útil</button>
-            </div>
-          ) : (
-            <p>¡Gracias por tu feedback!</p>
-          )}
         </div>
       )}
 
       {resultado && !resultado.informe && (
         <div style={{ marginTop: 16 }}>
-          {resultado.mensaje && <p><strong>Mensaje:</strong> {String(resultado.mensaje)}</p>}
-          {resultado.origen && <p><strong>Origen:</strong> {String(resultado.origen)}</p>}
-          {!resultado.mensaje && !resultado.origen && (
-            <pre>{JSON.stringify(resultado, null, 2)}</pre>
-          )}
+          <pre>{JSON.stringify(resultado, null, 2)}</pre>
         </div>
       )}
     </div>

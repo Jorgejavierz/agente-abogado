@@ -3,15 +3,13 @@ import { API_BASE } from "../config";
 
 interface Informe {
   consulta: string;
-  explicacion_doctrinal: string;
-  normativa_aplicable: string[] | string;
-  jurisprudencia_relevante: string | string[];
-  fallos_relacionados: any[];
   clasificacion: string;
-  riesgos_legales: string;
-  recomendaciones: string;
+  explicacion_doctrinal: string;
+  fuente_doctrina: string;
+  fallos_relacionados: any[];
+  antecedentes_faiss: any[];
+  informe: string;
   conclusion: string;
-  fuente: string;
 }
 
 function DocumentAgent() {
@@ -19,7 +17,6 @@ function DocumentAgent() {
   const [question, setQuestion] = useState<string>("");
   const [answer, setAnswer] = useState<Informe | null>(null);
   const [mensaje, setMensaje] = useState<string | null>(null);
-  const [origen, setOrigen] = useState<string | null>(null);
   const [cargando, setCargando] = useState(false);
 
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -28,6 +25,9 @@ function DocumentAgent() {
     }
   };
 
+  // ============================
+  // SUBIR PDF → /analizar
+  // ============================
   const handleUpload = async () => {
     if (!file) {
       alert("Selecciona un archivo primero");
@@ -37,13 +37,12 @@ function DocumentAgent() {
     setCargando(true);
     setAnswer(null);
     setMensaje(null);
-    setOrigen(null);
 
     try {
       const formData = new FormData();
       formData.append("file", file);
 
-      const resp = await fetch(`${API_BASE}/procesar-documento`, {
+      const resp = await fetch(`${API_BASE}/analizar`, {
         method: "POST",
         body: formData,
       });
@@ -51,13 +50,7 @@ function DocumentAgent() {
       if (!resp.ok) throw new Error(`Error ${resp.status}`);
 
       const data = await resp.json();
-
-      if (data.informe) {
-        setAnswer(data.informe);
-      } else {
-        setMensaje(String(data.mensaje || ""));
-        setOrigen(String(data.origen || ""));
-      }
+      setAnswer(data);
     } catch (err) {
       console.error(err);
       setMensaje("No se pudo procesar el documento.");
@@ -66,6 +59,9 @@ function DocumentAgent() {
     }
   };
 
+  // ============================
+  // CONSULTAR TEXTO → /chat
+  // ============================
   const handleAsk = async () => {
     if (!question) {
       alert("Escribe una pregunta");
@@ -75,25 +71,18 @@ function DocumentAgent() {
     setCargando(true);
     setAnswer(null);
     setMensaje(null);
-    setOrigen(null);
 
     try {
-      const resp = await fetch(
-        `${API_BASE}/consultar_documento?pregunta=${encodeURIComponent(
-          question
-        )}&k=3`
-      );
+      const resp = await fetch(`${API_BASE}/chat`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ mensaje: question }),
+      });
 
       if (!resp.ok) throw new Error(`Error ${resp.status}`);
 
       const data = await resp.json();
-
-      if (data.informe) {
-        setAnswer(data.informe);
-      } else {
-        setMensaje(String(data.mensaje || ""));
-        setOrigen(String(data.origen || ""));
-      }
+      setAnswer(data);
     } catch (err) {
       console.error(err);
       setMensaje("No se pudo obtener respuesta.");
@@ -139,36 +128,28 @@ function DocumentAgent() {
           }}
         >
           <h2>Informe generado</h2>
-          <p><strong>Consulta:</strong> {String(answer.consulta)}</p>
-          <p><strong>Clasificación:</strong> {String(answer.clasificacion)}</p>
-          <p><strong>Explicación doctrinal:</strong> {String(answer.explicacion_doctrinal)}</p>
+          <p><strong>Consulta:</strong> {answer.consulta}</p>
+          <p><strong>Clasificación:</strong> {answer.clasificacion}</p>
+          <p><strong>Explicación doctrinal:</strong> {answer.explicacion_doctrinal}</p>
+          <p><strong>Fuente doctrina:</strong> {answer.fuente_doctrina}</p>
 
-          <p>
-            <strong>Normativa aplicable:</strong>{" "}
-            {Array.isArray(answer.normativa_aplicable)
-              ? answer.normativa_aplicable.join(", ")
-              : String(answer.normativa_aplicable)}
-          </p>
+          <p><strong>Fallos relacionados:</strong></p>
+          <pre>{JSON.stringify(answer.fallos_relacionados, null, 2)}</pre>
 
-          <p>
-            <strong>Jurisprudencia relevante:</strong>{" "}
-            {Array.isArray(answer.jurisprudencia_relevante)
-              ? answer.jurisprudencia_relevante.join(", ")
-              : String(answer.jurisprudencia_relevante)}
-          </p>
+          <p><strong>Antecedentes FAISS:</strong></p>
+          <pre>{JSON.stringify(answer.antecedentes_faiss, null, 2)}</pre>
 
-          <p><strong>Riesgos legales:</strong> {String(answer.riesgos_legales)}</p>
-          <p><strong>Recomendaciones:</strong> {String(answer.recomendaciones)}</p>
-          <p><strong>Conclusión:</strong> {String(answer.conclusion)}</p>
-          <p><strong>Fuente:</strong> {String(answer.fuente)}</p>
+          <p><strong>Informe narrativo:</strong></p>
+          <pre>{answer.informe}</pre>
+
+          <p><strong>Conclusión:</strong> {answer.conclusion}</p>
         </div>
       )}
 
-      {/* Mensaje / Origen */}
-      {!answer && (mensaje || origen) && (
+      {/* Mensaje */}
+      {!answer && mensaje && (
         <div style={{ marginTop: "20px" }}>
-          {mensaje && <p><strong>Mensaje:</strong> {mensaje}</p>}
-          {origen && <p><strong>Origen:</strong> {origen}</p>}
+          <p><strong>Mensaje:</strong> {mensaje}</p>
         </div>
       )}
     </div>

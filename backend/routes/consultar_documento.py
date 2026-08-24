@@ -1,32 +1,25 @@
-# routes/consultar_documento.py
+# backend/routes/consultar_documento.py
 
 from fastapi import APIRouter, Query
 from backend.legal_agent import LaborLawyerAgent
 from backend.config import db, llm_client
 
-router = APIRouter()
+router = APIRouter(tags=["Documentos"])
 
 # Inicializamos el agente
 agent = LaborLawyerAgent(db=db, llm_client=llm_client)
 
 
-@router.get("/consultar_documento")
-def consultar_documento(
-    pregunta: str = Query(..., description="Consulta laboral a analizar"),
-    k: int = Query(3, description="Cantidad de antecedentes a recuperar")
-):
+# ---------------------------
+# Función interna para motor.py
+# ---------------------------
+def buscar_documento(consulta: str, k: int = 3):
     """
-    Endpoint premium para consultas laborales.
-    Devuelve un informe narrativo enriquecido con estilo conversacional,
-    jurisprudencia relevante y recomendaciones prácticas.
+    Función interna para búsqueda documental.
+    Se usa desde motor.py para integrar consultas.
     """
-
     try:
-        historial = []
-
-        # El método correcto es responder()
-        resultado = agent.responder(pregunta)
-
+        resultado = agent.responder(consulta)
         return {
             "informe": resultado.get("informe"),
             "consulta": resultado.get("consulta"),
@@ -38,10 +31,25 @@ def consultar_documento(
             "fuente": resultado.get("fuente", None),
             "origen": "Agente Laboral IA"
         }
-
     except Exception as e:
         return {
             "mensaje": "Error procesando la consulta",
             "detalle": str(e),
             "origen": "Agente Laboral IA"
         }
+
+
+# ---------------------------
+# Endpoint principal
+# ---------------------------
+@router.get("/consultar_documento")
+def consultar_documento(
+    pregunta: str = Query(..., description="Consulta laboral a analizar"),
+    k: int = Query(3, description="Cantidad de antecedentes a recuperar")
+):
+    """
+    Endpoint premium para consultas laborales.
+    Devuelve un informe narrativo enriquecido con estilo conversacional,
+    jurisprudencia relevante y recomendaciones prácticas.
+    """
+    return buscar_documento(pregunta, k)
