@@ -7,9 +7,15 @@ import pytesseract
 import faiss
 import pickle
 from sentence_transformers import SentenceTransformer
+import io
+import fitz  # ✅ PyMuPDF
+from PIL import Image
 
 # Configuración de Tesseract en Windows
 pytesseract.pytesseract.tesseract_cmd = r"C:\Program Files\Tesseract-OCR\tesseract.exe"
+
+# Ruta explícita de Poppler en Windows
+POPPLER_PATH = r"C:\Program Files\poppler-25.12.0\Library\bin"
 
 router = APIRouter(tags=["PDF"])
 
@@ -18,31 +24,41 @@ model = SentenceTransformer("all-MiniLM-L6-v2")
 
 
 # ---------------------------
-# Utilidad interna
+# Utilidad interna: OCR + extracción
 # ---------------------------
 def extraer_texto_pdf(file_bytes: bytes) -> str:
-    """Extrae texto de un PDF usando PyPDF2 y OCR como fallback."""
+    """
+    Extrae texto de un PDF usando PyPDF2 y OCR como fallback.
+    Si pdf2image falla, usa PyMuPDF para rasterizar páginas.
+    """
     try:
-        reader = PdfReader(file_bytes)
+        # Intento con PyPDF2
+        reader = PdfReader(io.BytesIO(file_bytes))
         texto = ""
-
         for page in reader.pages:
             contenido = page.extract_text() or ""
             texto += contenido + "\n"
 
         texto = texto.strip()
-
         if texto:
             return texto
 
-        # Si no hay texto → usar OCR
-        imagenes = convert_from_bytes(file_bytes)
-        texto_ocr = ""
-
-        for img in imagenes:
-            texto_ocr += pytesseract.image_to_string(img, lang="spa") + "\n"
-
-        return texto_ocr.strip()
+        # Si no hay texto → OCR con pdf2image
+        try:
+            imagenes = convert_from_bytes(file_bytes, poppler_path=POPPLER_PATH)
+            texto_ocr = ""
+            for img in imagenes:
+                texto_ocr += pytesseract.image_to_string(img, lang="spa") + "\n"
+            return texto_ocr.strip()
+        except Exception:
+            # Fallback final: usar PyMuPDF
+            doc = fitz.open(stream=file_bytes, filetype="pdf")
+            texto_ocr = ""
+            for page in doc:
+                pix = page.get_pixmap()
+                img = Image.frombytes("RGB", [pix.width, pix.height], pix.samples)
+                texto_ocr += pytesseract.image_to_string(img, lang="spa") + "\n"
+            return texto_ocr.strip()
 
     except Exception as e:
         print(f"Error al procesar PDF: {e}")
@@ -52,8 +68,11 @@ def extraer_texto_pdf(file_bytes: bytes) -> str:
 # ---------------------------
 # Indexación en FAISS
 # ---------------------------
-def indexar_texto_en_faiss(texto: str):
-    """Convierte el texto en embeddings y lo agrega al índice FAISS."""
+def indexar_texto_en_faiss(texto: str, fuente: str):
+    """
+    Convierte el texto en embeddings y lo agrega al índice FAISS.
+    Guarda también la fuente del documento.
+    """
     try:
         # Cargar índice y corpus existentes
         index = faiss.read_index("backend/faiss_index/index.faiss")
@@ -64,15 +83,15 @@ def indexar_texto_en_faiss(texto: str):
         nuevos_parrafos = [p.strip() for p in texto.split("\n") if p.strip()]
         embeddings = model.encode(nuevos_parrafos)
 
-        # Actualizar índice y corpus
+        # Actualizar índice y corpus con metadatos
         index.add(embeddings)
-        corpus.extend(nuevos_parrafos)
+        corpus.extend([{"texto": p, "fuente": fuente} for p in nuevos_parrafos])
 
         faiss.write_index(index, "backend/faiss_index/index.faiss")
         with open("backend/faiss_index/corpus.pkl", "wb") as f:
             pickle.dump(corpus, f)
 
-        print(f"Indexación completada: {len(nuevos_parrafos)} párrafos agregados.")
+        print(f"Indexación completada: {len(nuevos_parrafos)} párrafos agregados de {fuente}.")
 
     except Exception as e:
         print(f"Error al indexar texto en FAISS: {e}")
@@ -85,7 +104,7 @@ def indexar_texto_en_faiss(texto: str):
 async def procesar_pdf(file: UploadFile = File(...)):
     """
     Extrae texto de un PDF. Si no tiene texto embebido, aplica OCR.
-    Devuelve el texto extraído y lo indexa en FAISS.
+    Devuelve el texto extraído y lo indexa en FAISS con su fuente.
     """
 
     if not file.filename.lower().endswith(".pdf"):
@@ -101,13 +120,14 @@ async def procesar_pdf(file: UploadFile = File(...)):
                 detail="No se pudo extraer texto del PDF, ni siquiera con OCR."
             )
 
-        # Indexar el texto extraído
-        indexar_texto_en_faiss(contenido)
+        # Indexar el texto extraído con fuente
+        indexar_texto_en_faiss(contenido, file.filename)
 
         return {
             "status": "ok",
             "texto": contenido,
             "indexado": True,
+            "fuente": file.filename,
             "origen": "Agente Laboral IA"
         }
 

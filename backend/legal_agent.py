@@ -80,7 +80,7 @@ class LaborLawyerAgent:
         fallos = self.buscador.buscar_fallos(consulta=texto, top_k=3)
         if fallos:
             f0 = fallos[0]
-            fuente = f"{f0.get('tribunal', 'Tribunal no especificado')} - {f0.get('fecha', 'Fecha no disponible')}"
+            fuente = f"{f0.get('tribunal', 'Tribunal no especificado')} - {f0.get('fecha', 'Fecha no disponible')} ({f0.get('origen')})"
             return {
                 "explicacion": f"Se hallaron {len(fallos)} antecedentes jurisprudenciales.",
                 "fuente": fuente,
@@ -103,6 +103,36 @@ class LaborLawyerAgent:
         if "conflicto" in t or "despido" in t:
             return "Conflicto laboral"
         return "Consulta general"
+
+    # ============================================================
+    # Generación de informe narrativo
+    # ============================================================
+    def _generar_informe(self, consulta: str, fallos: list[dict]) -> str:
+        informe = "⚖️ Informe Jurídico Automatizado\n\n"
+        informe += f"1. Consulta recibida:\n{consulta}\n\n"
+
+        informe += "2. Explicación doctrinal:\n"
+        if fallos:
+            informe += f"Se hallaron {len(fallos)} antecedentes jurisprudenciales.\n"
+        else:
+            informe += "No se hallaron antecedentes.\n"
+        informe += "Fuente: FAISS y portal oficial\n\n"
+
+        informe += "3. Jurisprudencia relevante:\n"
+        if fallos:
+            for fallo in fallos:
+                informe += f"- {fallo['titulo']} (Fuente: {fallo['origen']})\n"
+        else:
+            informe += "No se encontraron antecedentes.\n"
+
+        informe += "\n4. Fallos relacionados:\n"
+        informe += f"{len(fallos)} antecedentes encontrados.\n\n"
+
+        informe += "5. Clasificación del caso:\nConflicto laboral\n\n"
+        informe += "6. Recomendaciones:\nNo se generaron recomendaciones.\n\n"
+        informe += "7. Conclusión:\nEste informe es una aproximación automatizada basada en el contexto disponible. No reemplaza la revisión jurídica especializada.\n"
+
+        return informe
 
     # ============================================================
     # Lógica principal
@@ -144,6 +174,10 @@ class LaborLawyerAgent:
             informe = resp.choices[0].message.content
         except Exception as e:
             print(f"Error al generar informe narrativo: {e}")
+
+        # Si el LLM falla, generamos informe local con fuentes explícitas
+        if not informe:
+            informe = self._generar_informe(texto, fallos_relacionados)
 
         informe = ResponseFormatter.formatear_respuesta(informe or "")
 

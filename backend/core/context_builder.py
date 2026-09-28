@@ -28,7 +28,8 @@ class ContextBuilder:
         partes = []
         for h in historial[-self.max_historial:]:
             partes.append(
-                f"- Consulta: {h['consulta']}\n  Respuesta: {h['respuesta']}"
+                f"- Consulta: {h.get('consulta', 'N/A')}\n  Respuesta: {h.get('respuesta', 'N/A')}"
+
             )
 
         return "\n".join(partes)

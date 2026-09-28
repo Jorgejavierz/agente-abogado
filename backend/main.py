@@ -25,6 +25,9 @@ from backend.routes.casos import router as casos_router
 from backend.core.razonamiento.motor import razonamiento_juridico
 from pydantic import BaseModel
 
+# FAISS router
+from backend.faiss_index import search
+
 # Logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("backend")
@@ -72,6 +75,7 @@ app.include_router(memoria_router)
 app.include_router(chat_router)
 app.include_router(intereses_router)
 app.include_router(casos_router)
+app.include_router(search.router)   # 👉 FAISS integrado aquí
 
 
 # ============================================================

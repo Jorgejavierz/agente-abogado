@@ -2,18 +2,12 @@
 
 from fastapi import APIRouter, Request, UploadFile, File, HTTPException, Query
 from pydantic import BaseModel
-import io
 import logging
-from PyPDF2 import PdfReader
-from pdf2image import convert_from_bytes
-import pytesseract
-
-# Configuración de Tesseract en Windows
-pytesseract.pytesseract.tesseract_cmd = r"C:\Program Files\Tesseract-OCR\tesseract.exe"
+from backend.routes.pdf import extraer_texto_pdf  # Usamos la función centralizada
 
 logger = logging.getLogger("backend.routes.analizar")
 
-# Definir el router antes de usarlo en decoradores
+# Definir el router
 router = APIRouter(tags=["Analizar"])
 
 
@@ -31,45 +25,7 @@ class AnalizarInput(BaseModel):
 
 
 # ---------------------------
-# Utilidades internas
-# ---------------------------
-def extraer_texto_pdf(file_bytes: bytes) -> str:
-    """Extrae texto de un PDF usando PyPDF2 y OCR como fallback."""
-    try:
-        # PdfReader espera un stream o path; usamos BytesIO
-        reader = PdfReader(io.BytesIO(file_bytes))
-        texto = ""
-
-        for page in reader.pages:
-            contenido = page.extract_text() or ""
-            texto += contenido + "\n"
-
-        texto = texto.strip()
-        if texto:
-            return texto
-
-        # Si no hay texto → usar OCR (pdf2image)
-        try:
-            imagenes = convert_from_bytes(file_bytes)
-        except Exception as e_conv:
-            logger.exception("pdf2image falló al convertir bytes a imágenes: %s", e_conv)
-            # Si necesitás usar poppler en Windows, descomentá y ajustá la línea siguiente:
-            # imagenes = convert_from_bytes(file_bytes, poppler_path=r"C:\ruta\a\poppler\bin")
-            raise
-
-        texto_ocr = ""
-        for img in imagenes:
-            texto_ocr += pytesseract.image_to_string(img, lang="spa") + "\n"
-
-        return texto_ocr.strip()
-
-    except Exception as e:
-        logger.exception("Error al procesar PDF en extraer_texto_pdf: %s", e)
-        return ""
-
-
-# ---------------------------
-# Endpoint principal (alias + original)
+# Endpoint principal
 # ---------------------------
 @router.post("/procesar-documento")
 @router.post("/analizar")
@@ -108,7 +64,7 @@ async def analizar_documento(
         if not contenido:
             raise HTTPException(status_code=400, detail="No se recibió texto válido para analizar.")
 
-        # Delegar al agente jurídico (método correcto)
+        # Delegar al agente jurídico
         resultado = agente.responder(contenido)
 
         # Construcción del informe narrativo
@@ -146,7 +102,6 @@ Fuente: {resultado.get('fuente', 'Sin fuente disponible')}
 
     except HTTPException:
         raise
-
     except Exception as e:
         logger.exception("Error en /analizar: %s", e)
         raise HTTPException(status_code=500, detail="Error interno del servidor.")
