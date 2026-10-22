@@ -142,21 +142,26 @@ class LaborLawyerAgent:
         clasificacion = self._clasificar(texto)
         antecedentes_faiss = self.buscar_en_faiss(texto)
         fallos_relacionados = self.buscador.buscar_fallos(consulta=texto, top_k=5)
+        normativa_relacionada = self.buscador.buscar_legislacion(consulta=texto,limit=5)
         doctrina = self.explicar_concepto(texto)
-
         historial = self.db.listar_memoria(limit=5)
         casos = self.db.listar_casos(limit=5)
 
         contexto = self.context_builder.construir_contexto(
-            historial=historial,
-            casos=casos
-        )
-
+        historial=historial,
+        casos=casos,
+        antecedentes_faiss=antecedentes_faiss,
+        fallos=fallos_relacionados,
+        normativa=normativa_relacionada
+)
         prompt_final = LABOR_LAWYER_PROMPT.format(
-            historial=contexto["historial"],
-            casos=contexto["casos"]
+        historial=contexto["historial"],
+        casos=contexto["casos"],
+        faiss=contexto["faiss"],
+        jurisprudencia=contexto["jurisprudencia"],
+        normativa=contexto["normativa"]
         ) + f"\n\n=== CONSULTA DEL USUARIO ===\n{texto}\n"
-
+    
         # ============================================================
         # 🔥 LLM (DeepSeek)
         # ============================================================

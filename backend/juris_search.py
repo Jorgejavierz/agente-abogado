@@ -5,20 +5,44 @@ from loguru import logger
 
 from backend.config import FAISS_SERVER, SAIJ_API_KEY
 
-
 class SaijAPI:
     BASE_URL = "https://juridica.ar/api/v1/search"
     API_KEY = SAIJ_API_KEY
 
-    def buscar(self, consulta: str, tipo: str = "legislacion", limit: int = 5):
-        headers = {"Authorization": f"Bearer {self.API_KEY}"}
-        params = {"q": consulta, "tipo": tipo, "limit": limit}
+    def buscar(
+        self,
+        consulta: str,
+        tipo: str = "legislacion",
+        limit: int = 5
+    ):
+        headers = {
+            "Authorization": f"Bearer {self.API_KEY}"
+        }
+
+        params = {
+            "q": consulta,
+            "tipo": tipo,
+            "limit": limit
+        }
+
         try:
-            resp = requests.get(self.BASE_URL, headers=headers, params=params, timeout=10)
+            resp = requests.get(
+                self.BASE_URL,
+                headers=headers,
+                params=params,
+                timeout=10
+            )
+
             resp.raise_for_status()
+
             return resp.json().get("results", [])
+
         except Exception as e:
-            logger.error(f"Error al consultar SAIJ API: {e}")
+
+            logger.error(
+                f"Error al consultar SAIJ API: {e}"
+            )
+
             return [{
                 "titulo": "SAIJ no disponible",
                 "contenido": "No se pudo conectar con la API de SAIJ.",
@@ -28,6 +52,16 @@ class SaijAPI:
                 "origen": "SAIJ API"
             }]
 
+    def buscar_legislacion(
+        self,
+        consulta: str,
+        limit: int = 5
+    ):
+        return self.buscar(
+            consulta=consulta,
+            tipo="legislacion",
+            limit=limit
+        )
 
 class Jurisprudencia:
     """
@@ -154,22 +188,38 @@ class Jurisprudencia:
             "fecha": None,
             "origen": "FAISS externo"
         }]
-
     # ============================================================
     # SAIJ API
     # ============================================================
-    def buscar_fallos_saij(self, consulta: str, limit=5) -> list[dict]:
-        resultados = self.saij_api.buscar(consulta, tipo="legislacion", limit=limit)
+    def buscar_fallos_saij(
+        self,
+        consulta: str,
+        limit=5
+    ) -> list[dict]:
+
+        resultados = self.saij_api.buscar(
+            consulta,
+            tipo="legislacion",
+            limit=limit
+        )
+
         fallos = []
+
         for r in resultados:
+
             fallos.append({
                 "titulo": r.get("titulo", "Sin título"),
-                "contenido": r.get("texto", "")[:600] + "..." if r.get("texto") else "",
+                "contenido": (
+                    r.get("texto", "")[:600] + "..."
+                    if r.get("texto")
+                    else ""
+                ),
                 "link": r.get("link"),
                 "tribunal": r.get("tribunal"),
                 "fecha": r.get("fecha"),
                 "origen": "SAIJ API"
             })
+
         return fallos or [{
             "titulo": "Sin resultados en SAIJ",
             "contenido": "No se encontraron normas relevantes en SAIJ.",
@@ -180,23 +230,79 @@ class Jurisprudencia:
         }]
 
     # ============================================================
+    # LEGISLACIÓN (SAIJ)
+    # ============================================================
+    def buscar_legislacion(
+        self,
+        consulta: str,
+        limit=5
+    ) -> list[dict]:
+
+        resultados = self.saij_api.buscar_legislacion(
+            consulta,
+            limit=limit
+        )
+
+        normas = []
+
+        for r in resultados:
+
+            normas.append({
+                "titulo": r.get("titulo", "Sin título"),
+                "contenido": (
+                    r.get("texto", "")[:600] + "..."
+                    if r.get("texto")
+                    else ""
+                ),
+                "link": r.get("link"),
+                "origen": "SAIJ API"
+            })
+
+        return normas or [{
+            "titulo": "Sin normativa",
+            "contenido": "No se encontraron normas relevantes.",
+            "link": None,
+            "origen": "SAIJ API"
+        }]
+    # ============================================================
     # MÉTODO MAESTRO
     # ============================================================
-    def buscar_fallos(self, consulta: str, top_k=5, incluir_scraping=True, incluir_saij=True) -> list[dict]:
+    def buscar_fallos(
+        self,
+        consulta: str,
+        top_k=5,
+        incluir_scraping=True,
+        incluir_saij=True
+    ) -> list[dict]:
+
         resultados = []
 
         # 1. FAISS externo
-        resultados.extend(self.buscar_fallos_semanticos(consulta, top_k))
+        resultados.extend(
+            self.buscar_fallos_semanticos(
+                consulta,
+                top_k
+            )
+        )
 
         # 2. Scraping oficial
         if incluir_scraping:
-            resultados.extend(self.buscar_fallos_scraping(consulta, top_k))
 
-        # 3. API SAIJ
-        if incluir_saij:
-            resultados.extend(self.buscar_fallos_saij(consulta, limit=top_k))
+            resultados.extend(
+                self.buscar_fallos_scraping(
+                    consulta,
+                    top_k
+                )
+            )
 
-        resultados.sort(key=lambda x: x.get("fecha") or "", reverse=True)
+        # SAIJ ya NO forma parte de la jurisprudencia.
+        # La normativa se consulta mediante:
+        # self.buscar_legislacion()
+
+        resultados.sort(
+            key=lambda x: x.get("fecha") or "",
+            reverse=True
+        )
 
         return resultados or [{
             "titulo": "Sin resultados",
@@ -206,14 +312,32 @@ class Jurisprudencia:
             "fecha": None,
             "origen": "Agente Laboral IA"
         }]
+    # ============================================================
+# INSTANCIA GLOBAL
+# ============================================================
 
-
-# Instancia global del buscador de jurisprudencia
 _juris = Jurisprudencia()
 
-def buscar_jurisprudencia(consulta: str, k: int = 5, incluir_scraping: bool = True, incluir_saij: bool = True):
+
+# ============================================================
+# CONSULTA DE JURISPRUDENCIA
+# ============================================================
+
+def buscar_jurisprudencia(
+    consulta: str,
+    k: int = 5,
+    incluir_scraping: bool = True,
+    incluir_saij: bool = True
+):
     try:
-        resultados = _juris.buscar_fallos(consulta, top_k=k, incluir_scraping=incluir_scraping, incluir_saij=incluir_saij)
+
+        resultados = _juris.buscar_fallos(
+            consulta,
+            top_k=k,
+            incluir_scraping=incluir_scraping,
+            incluir_saij=incluir_saij
+        )
+
         if not resultados:
             resultados = [{
                 "titulo": "Sin resultados",
@@ -223,13 +347,16 @@ def buscar_jurisprudencia(consulta: str, k: int = 5, incluir_scraping: bool = Tr
                 "fecha": None,
                 "origen": "Agente Laboral IA"
             }]
+
         return {
             "consulta": consulta,
             "jurisprudencia_relevante": resultados,
             "detalle": "Consulta de jurisprudencia procesada correctamente.",
             "origen": "Agente Laboral IA"
         }
+
     except Exception as e:
+
         return {
             "consulta": consulta,
             "jurisprudencia_relevante": [{
@@ -241,5 +368,42 @@ def buscar_jurisprudencia(consulta: str, k: int = 5, incluir_scraping: bool = Tr
                 "origen": "Agente Laboral IA"
             }],
             "detalle": f"Error en búsqueda de jurisprudencia: {e}",
+            "origen": "Agente Laboral IA"
+        }
+
+
+# ============================================================
+# CONSULTA DE LEGISLACIÓN
+# ============================================================
+
+def buscar_legislacion(
+    consulta: str,
+    limit: int = 5
+):
+    try:
+
+        resultados = _juris.buscar_legislacion(
+            consulta,
+            limit=limit
+        )
+
+        return {
+            "consulta": consulta,
+            "normativa_relevante": resultados,
+            "detalle": "Consulta normativa procesada correctamente.",
+            "origen": "Agente Laboral IA"
+        }
+
+    except Exception as e:
+
+        return {
+            "consulta": consulta,
+            "normativa_relevante": [{
+                "titulo": "Error interno",
+                "contenido": f"No se pudo procesar la consulta: {e}",
+                "link": None,
+                "origen": "Agente Laboral IA"
+            }],
+            "detalle": f"Error en búsqueda normativa: {e}",
             "origen": "Agente Laboral IA"
         }
