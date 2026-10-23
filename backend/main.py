@@ -9,8 +9,7 @@ import uvicorn
 # Configuración centralizada
 from backend.config import db
 
-# Agente jurídico
-from backend.legal_agent import LaborLawyerAgent
+from backend.core.container import container
 
 # Routers (imports explícitos, más seguros)
 from backend.routes.health import router as health_router
@@ -59,11 +58,10 @@ app.add_middleware(
 # Inicializar el agente
 # ============================================================
 try:
-    app.state.agent = LaborLawyerAgent(db=db)
+    container.agent
     logger.info("LaborLawyerAgent inicializado correctamente.")
-except Exception as e:
+except Exception:
     logger.exception("Error al inicializar LaborLawyerAgent.")
-
 
 # ============================================================
 # Registrar routers

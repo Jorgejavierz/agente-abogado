@@ -3,8 +3,7 @@
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 
-from backend.legal_agent import LaborLawyerAgent
-from backend.config import llm_client, db
+from backend.core.container import container
 
 router = APIRouter()
 
@@ -14,13 +13,6 @@ router = APIRouter()
 # ---------------------------
 class ChatRequest(BaseModel):
     mensaje: str
-
-
-# ---------------------------
-# Instancia del agente
-# ---------------------------
-agente = LaborLawyerAgent(db=db, llm_client=llm_client)
-
 
 # ---------------------------
 # Endpoint principal del chat
@@ -38,7 +30,7 @@ async def chat_endpoint(data: ChatRequest):
         raise HTTPException(status_code=400, detail="El mensaje no puede estar vacío.")
 
     try:
-        respuesta = agente.responder(texto)
+        respuesta = container.agent.responder(texto)
         return {
             "status": "ok",
             "respuesta": respuesta
@@ -47,3 +39,4 @@ async def chat_endpoint(data: ChatRequest):
     except Exception as e:
         print(f"Error en /chat: {e}")
         raise HTTPException(status_code=500, detail="Error interno del servidor.")
+

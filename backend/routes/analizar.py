@@ -1,5 +1,6 @@
 # backend/routes/analizar.py
 
+from backend.core.container import container
 from fastapi import APIRouter, Request, UploadFile, File, HTTPException, Query
 from pydantic import BaseModel
 import logging
@@ -38,7 +39,7 @@ async def analizar_documento(
     Analiza texto o PDF y devuelve un informe jurídico estructurado.
     """
 
-    agente = request.app.state.agent
+    agente = container.agent
     contenido = ""
 
     try:
@@ -115,7 +116,7 @@ async def consultar_documento(request: Request, pregunta: str = Query(..., min_l
     """
     Endpoint para consultas rápidas por texto: /consultar_documento?pregunta=...
     """
-    agente = request.app.state.agent
+    agente = container.agent
     try:
         contenido = pregunta.strip()
         if not contenido:

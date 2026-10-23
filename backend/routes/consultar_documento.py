@@ -1,8 +1,7 @@
 # backend/routes/consultar_documento.py
 
 from fastapi import APIRouter, Query
-from backend.legal_agent import LaborLawyerAgent
-from backend.config import db, llm_client
+from backend.core.container import container
 
 router = APIRouter(tags=["Documentos"])
 
