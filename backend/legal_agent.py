@@ -143,6 +143,9 @@ class LaborLawyerAgent:
         antecedentes_faiss = self.buscar_en_faiss(texto)
         fallos_relacionados = self.buscador.buscar_fallos(consulta=texto, top_k=5)
         normativa_relacionada = self.buscador.buscar_legislacion(consulta=texto,limit=5)
+        print("\n=== NORMATIVA ===")
+        print(normativa_relacionada)
+        print("=================\n")
         doctrina = self.explicar_concepto(texto)
         historial = self.db.listar_memoria(limit=5)
         casos = self.db.listar_casos(limit=5)
@@ -165,7 +168,16 @@ class LaborLawyerAgent:
         # ============================================================
         # 🔥 LLM (DeepSeek)
         # ============================================================
+
         informe = None
+
+        print("\n=== ESTADISTICAS DE CONTEXTO ===")
+        print("FAISS:", len(antecedentes_faiss))
+        print("Jurisprudencia:", len(fallos_relacionados))
+        print("Normativa:", len(normativa_relacionada))
+        print("Longitud prompt:", len(prompt_final))
+        print("================================\n")
+
         try:
             resp = self.llm_client.chat.completions.create(
                 model=MODEL_NAME,
@@ -176,13 +188,31 @@ class LaborLawyerAgent:
                 temperature=0.2,
                 max_tokens=1500
             )
+
             informe = resp.choices[0].message.content
+
+            print("\n=== RESPUESTA DEL LLM ===")
+            print("Respuesta recibida correctamente")
+            print("=========================\n")
+
         except Exception as e:
-            print(f"Error al generar informe narrativo: {e}")
+
+            import traceback
+
+            print("\n" + "=" * 80)
+            print("ERROR LLM")
+            print("=" * 80)
+
+            traceback.print_exc()
+
+            print("=" * 80 + "\n")
 
         # Si el LLM falla, generamos informe local con fuentes explícitas
         if not informe:
-            informe = self._generar_informe(texto, fallos_relacionados)
+            informe = self._generar_informe(
+                texto,
+                fallos_relacionados
+            )
 
         informe = ResponseFormatter.formatear_respuesta(informe or "")
 
@@ -200,7 +230,10 @@ class LaborLawyerAgent:
                 tipo=clasificacion,
                 texto=texto,
                 normativa="Normativa aplicable pendiente de extracción.",
-                jurisprudencia=json.dumps(fallos_relacionados, ensure_ascii=False),
+                jurisprudencia=json.dumps(
+                    fallos_relacionados,
+                    ensure_ascii=False
+                ),
                 resultado=informe
             )
 

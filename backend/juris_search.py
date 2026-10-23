@@ -248,13 +248,19 @@ class Jurisprudencia:
         for r in resultados:
 
             normas.append({
-                "titulo": r.get("titulo", "Sin título"),
-                "contenido": (
-                    r.get("texto", "")[:600] + "..."
-                    if r.get("texto")
-                    else ""
+                "titulo": (
+                    ", ".join(r.get("descriptores", []))
+                    if r.get("descriptores")
+                    else f"Norma {r.get('uuid', '')}"
                 ),
-                "link": r.get("link"),
+
+                "contenido": (
+                    f"Jurisdicción: {r.get('jurisdiccion', 'No informada')} | "
+                    f"Fecha: {r.get('fecha', 'No informada')}"
+                ),
+
+                "link": r.get("url"),
+
                 "origen": "SAIJ API"
             })
 
@@ -264,6 +270,7 @@ class Jurisprudencia:
             "link": None,
             "origen": "SAIJ API"
         }]
+    
     # ============================================================
     # MÉTODO MAESTRO
     # ============================================================
