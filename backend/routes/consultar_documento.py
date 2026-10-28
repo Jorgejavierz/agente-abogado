@@ -5,10 +5,6 @@ from backend.core.container import container
 
 router = APIRouter(tags=["Documentos"])
 
-# Inicializamos el agente
-agent = LaborLawyerAgent(db=db, llm_client=llm_client)
-
-
 # ---------------------------
 # Función interna para motor.py
 # ---------------------------
@@ -18,7 +14,7 @@ def buscar_documento(consulta: str, k: int = 3):
     Se usa desde motor.py para integrar consultas.
     """
     try:
-        resultado = agent.responder(consulta)
+        resultado = container.agent.responder(consulta)
         return {
             "informe": resultado.get("informe"),
             "consulta": resultado.get("consulta"),

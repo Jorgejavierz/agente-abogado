@@ -6,9 +6,6 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 import uvicorn
 
-# Configuración centralizada
-from backend.config import db
-
 from backend.core.container import container
 
 # Routers (imports explícitos, más seguros)

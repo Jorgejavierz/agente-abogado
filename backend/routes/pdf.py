@@ -6,23 +6,61 @@ from pdf2image import convert_from_bytes
 import pytesseract
 import faiss
 import pickle
-from sentence_transformers import SentenceTransformer
 import io
-import fitz  # ✅ PyMuPDF
+import fitz  # PyMuPDF
 from PIL import Image
+import os
 
-# Configuración de Tesseract en Windows
-pytesseract.pytesseract.tesseract_cmd = r"C:\Program Files\Tesseract-OCR\tesseract.exe"
 
-# Ruta explícita de Poppler en Windows
-POPPLER_PATH = r"C:\Program Files\poppler-25.12.0\Library\bin"
+# ============================================================
+# Configuración SO
+# ============================================================
+
+if os.name == "nt":
+    # Windows
+    pytesseract.pytesseract.tesseract_cmd = (
+        r"C:\Program Files\Tesseract-OCR\tesseract.exe"
+    )
+
+    POPPLER_PATH = (
+        r"C:\Program Files\poppler-25.12.0\Library\bin"
+    )
+else:
+    # Linux (Render)
+    POPPLER_PATH = None
+
 
 router = APIRouter(tags=["PDF"])
 
-# Modelo de embeddings
-model = SentenceTransformer("all-MiniLM-L6-v2")
+
+# ============================================================
+# Modelo de embeddings (Lazy Loading)
+# ============================================================
+
+_model = None
 
 
+def get_model():
+    """
+    Carga el modelo únicamente cuando se necesita.
+    Evita consumir memoria durante el arranque de Render.
+    """
+
+    global _model
+
+    if _model is None:
+
+        print("Cargando modelo de embeddings...")
+
+        from sentence_transformers import SentenceTransformer
+
+        _model = SentenceTransformer(
+            "all-MiniLM-L6-v2"
+        )
+
+        print("Modelo cargado correctamente.")
+
+    return _model
 # ---------------------------
 # Utilidad interna: OCR + extracción
 # ---------------------------
@@ -64,7 +102,6 @@ def extraer_texto_pdf(file_bytes: bytes) -> str:
         print(f"Error al procesar PDF: {e}")
         return ""
 
-
 # ---------------------------
 # Indexación en FAISS
 # ---------------------------
@@ -73,29 +110,65 @@ def indexar_texto_en_faiss(texto: str, fuente: str):
     Convierte el texto en embeddings y lo agrega al índice FAISS.
     Guarda también la fuente del documento.
     """
+
     try:
+
         # Cargar índice y corpus existentes
-        index = faiss.read_index("backend/faiss_index/index.faiss")
-        with open("backend/faiss_index/corpus.pkl", "rb") as f:
+        index = faiss.read_index(
+            "backend/faiss_index/index.faiss"
+        )
+
+        with open(
+            "backend/faiss_index/corpus.pkl",
+            "rb"
+        ) as f:
             corpus = pickle.load(f)
 
         # Dividir texto en párrafos
-        nuevos_parrafos = [p.strip() for p in texto.split("\n") if p.strip()]
-        embeddings = model.encode(nuevos_parrafos)
+        nuevos_parrafos = [
+            p.strip()
+            for p in texto.split("\n")
+            if p.strip()
+        ]
+
+        # Cargar modelo únicamente cuando se necesita
+        embeddings = get_model().encode(
+            nuevos_parrafos
+        )
 
         # Actualizar índice y corpus con metadatos
         index.add(embeddings)
-        corpus.extend([{"texto": p, "fuente": fuente} for p in nuevos_parrafos])
 
-        faiss.write_index(index, "backend/faiss_index/index.faiss")
-        with open("backend/faiss_index/corpus.pkl", "wb") as f:
+        corpus.extend([
+            {
+                "texto": p,
+                "fuente": fuente
+            }
+            for p in nuevos_parrafos
+        ])
+
+        faiss.write_index(
+            index,
+            "backend/faiss_index/index.faiss"
+        )
+
+        with open(
+            "backend/faiss_index/corpus.pkl",
+            "wb"
+        ) as f:
             pickle.dump(corpus, f)
 
-        print(f"Indexación completada: {len(nuevos_parrafos)} párrafos agregados de {fuente}.")
+        print(
+            f"Indexación completada: "
+            f"{len(nuevos_parrafos)} "
+            f"párrafos agregados de {fuente}."
+        )
 
     except Exception as e:
-        print(f"Error al indexar texto en FAISS: {e}")
 
+        print(
+            f"Error al indexar texto en FAISS: {e}"
+        )
 
 # ---------------------------
 # Endpoint principal
